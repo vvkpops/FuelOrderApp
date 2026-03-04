@@ -40,8 +40,11 @@ export function FlightTable() {
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [showFilters, setShowFilters] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("fb_showFilters") === "true";
-    return false;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("fb_showFilters");
+      return stored === null ? true : stored === "true";
+    }
+    return true;
   });
   const [filterDate, setFilterDate] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("fb_filterDate") || "";
@@ -152,26 +155,37 @@ export function FlightTable() {
   const formatDeptTime = (deptTime: string, deptIcao: string) => {
     const d = new Date(deptTime);
     if (boardTimeFormat === "utc") {
-      return d.toUTCString().slice(0, -4);
+      const mon = d.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      const hh = String(d.getUTCHours()).padStart(2, "0");
+      const mm = String(d.getUTCMinutes()).padStart(2, "0");
+      return `${mon} ${day}, ${hh}${mm}Z`;
     }
     const tz = tzCache[deptIcao.toUpperCase()];
-    if (!tz) return d.toUTCString().slice(0, -4);
+    if (!tz) {
+      const mon = d.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      const hh = String(d.getUTCHours()).padStart(2, "0");
+      const mm = String(d.getUTCMinutes()).padStart(2, "0");
+      return `${mon} ${day}, ${hh}${mm}Z`;
+    }
     try {
-      const localStr = d.toLocaleString("en-US", {
+      const parts = new Intl.DateTimeFormat("en-US", {
         timeZone: tz,
         month: "short",
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-      });
-      const tzAbbr = d
-        .toLocaleString("en-US", { timeZone: tz, timeZoneName: "short" })
-        .split(" ")
-        .pop();
-      return `${localStr} ${tzAbbr}`;
+      }).formatToParts(d);
+      const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+      return `${get("month")} ${get("day")}, ${get("hour")}${get("minute")}L`;
     } catch {
-      return d.toUTCString().slice(0, -4);
+      const mon = d.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      const hh = String(d.getUTCHours()).padStart(2, "0");
+      const mm = String(d.getUTCMinutes()).padStart(2, "0");
+      return `${mon} ${day}, ${hh}${mm}Z`;
     }
   };
 
