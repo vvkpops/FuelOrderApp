@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import pool from "@/lib/db";
+import { ensureDb } from "@/lib/init-db";
 
 // GET /api/orders/export — export orders as CSV
 export async function GET() {
   try {
-    const orders = await prisma.fuelOrder.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    await ensureDb();
+
+    const { rows: orders } = await pool.query(
+      "SELECT * FROM fuel_orders ORDER BY created_at DESC"
+    );
 
     const headers = [
       "Flight Number",
@@ -25,27 +28,27 @@ export async function GET() {
       "Created At",
     ];
 
-    const rows = orders.map((o) => [
-      o.flightNumber,
-      o.acRegistration,
-      o.acType,
-      o.deptIcao,
-      o.deptTime.toISOString(),
-      o.fuelLoad ?? "",
+    const csvRows = orders.map((o) => [
+      o.flight_number,
+      o.ac_registration,
+      o.ac_type,
+      o.dept_icao,
+      new Date(o.dept_time).toISOString(),
+      o.fuel_load ?? "",
       o.dispatcher,
       o.status,
-      o.sentAt?.toISOString() ?? "",
-      o.sentTo.join("; "),
-      o.ccTo.join("; "),
-      o.isUpdate ? "Yes" : "No",
-      o.updateReason ?? "",
-      o.createdAt.toISOString(),
+      o.sent_at ? new Date(o.sent_at).toISOString() : "",
+      (o.sent_to || []).join("; "),
+      (o.cc_to || []).join("; "),
+      o.is_update ? "Yes" : "No",
+      o.update_reason ?? "",
+      new Date(o.created_at).toISOString(),
     ]);
 
     const csv = [
       headers.join(","),
-      ...rows.map((r) =>
-        r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")
+      ...csvRows.map((r) =>
+        r.map((v: unknown) => `"${String(v).replace(/"/g, '""')}"`).join(",")
       ),
     ].join("\n");
 

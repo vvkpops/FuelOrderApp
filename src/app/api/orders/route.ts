@@ -1,41 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import pool from "@/lib/db";
+import { ensureDb } from "@/lib/init-db";
+import { newId } from "@/lib/id";
 import { formatEmailSubject, formatEmailBody, generateMailtoUrl } from "@/lib/email";
 
 // GET /api/orders — list all orders
 export async function GET(req: NextRequest) {
   try {
+    await ensureDb();
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const deptIcao = searchParams.get("deptIcao");
     const limit = Number(searchParams.get("limit")) || 200;
     const search = searchParams.get("search");
 
-    const where: Record<string, unknown> = {};
-    if (status) where.status = status;
-    if (deptIcao) where.deptIcao = deptIcao.toUpperCase();
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (status) {
+      conditions.push(`status = $${idx++}`);
+      params.push(status);
+    }
+    if (deptIcao) {
+      conditions.push(`dept_icao = $${idx++}`);
+      params.push(deptIcao.toUpperCase());
+    }
     if (search) {
-      where.OR = [
-        { flightNumber: { contains: search, mode: "insensitive" } },
-        { acRegistration: { contains: search, mode: "insensitive" } },
-        { deptIcao: { contains: search, mode: "insensitive" } },
-      ];
+      conditions.push(`(flight_number ILIKE $${idx} OR ac_registration ILIKE $${idx} OR dept_icao ILIKE $${idx})`);
+      params.push(`%${search}%`);
+      idx++;
     }
 
-    const orders = await prisma.fuelOrder.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: limit,
-    });
+    const where = conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
+    params.push(limit);
+
+    const sql = `SELECT * FROM fuel_orders ${where} ORDER BY created_at DESC LIMIT $${idx}`;
+    const { rows } = await pool.query(sql, params);
 
     return NextResponse.json({
       success: true,
-      data: orders.map((o) => ({
-        ...o,
-        deptTime: o.deptTime.toISOString(),
-        sentAt: o.sentAt?.toISOString() ?? null,
-        createdAt: o.createdAt.toISOString(),
-        updatedAt: o.updatedAt.toISOString(),
+      data: rows.map((o) => ({
+        id: o.id,
+        flightId: o.flight_id,
+        flightNumber: o.flight_number,
+        acRegistration: o.ac_registration,
+        acType: o.ac_type,
+        deptIcao: o.dept_icao,
+        deptTime: new Date(o.dept_time).toISOString(),
+        fuelLoad: o.fuel_load,
+        dispatcher: o.dispatcher,
+        status: o.status,
+        sentAt: o.sent_at ? new Date(o.sent_at).toISOString() : null,
+        sentTo: o.sent_to,
+        ccTo: o.cc_to,
+        emailSubject: o.email_subject,
+        emailBody: o.email_body,
+        isUpdate: o.is_update,
+        originalOrderId: o.original_order_id,
+        updateReason: o.update_reason,
+        createdAt: new Date(o.created_at).toISOString(),
+        updatedAt: new Date(o.updated_at).toISOString(),
       })),
     });
   } catch (error) {
@@ -50,6 +75,7 @@ export async function GET(req: NextRequest) {
 // POST /api/orders — create a new order and generate mailto URL
 export async function POST(req: NextRequest) {
   try {
+    await ensureDb();
     const body = await req.json();
 
     const {
@@ -76,35 +102,37 @@ export async function POST(req: NextRequest) {
 
     // Check for duplicate — same flight record, not cancelled
     if (!isUpdate && flightId) {
-      const duplicate = await prisma.fuelOrder.findFirst({
-        where: {
-          flightId,
-          status: { not: "CANCELLED" },
-        },
-      });
+      const { rows: dupes } = await pool.query(
+        "SELECT * FROM fuel_orders WHERE flight_id = $1 AND status != 'CANCELLED' LIMIT 1",
+        [flightId]
+      );
 
-      if (duplicate) {
+      if (dupes.length > 0) {
+        const d = dupes[0];
         return NextResponse.json({
           success: false,
           error: "DUPLICATE_WARNING",
-          message: `An order already exists for ${flightNumber} at ${deptIcao} (Status: ${duplicate.status}). Use update/resend instead, or include isUpdate: true.`,
+          message: `An order already exists for ${flightNumber} at ${deptIcao} (Status: ${d.status}). Use update/resend instead, or include isUpdate: true.`,
           existingOrder: {
-            ...duplicate,
-            deptTime: duplicate.deptTime.toISOString(),
-            sentAt: duplicate.sentAt?.toISOString() ?? null,
-            createdAt: duplicate.createdAt.toISOString(),
-            updatedAt: duplicate.updatedAt.toISOString(),
+            id: d.id,
+            flightNumber: d.flight_number,
+            status: d.status,
+            deptTime: new Date(d.dept_time).toISOString(),
+            sentAt: d.sent_at ? new Date(d.sent_at).toISOString() : null,
+            createdAt: new Date(d.created_at).toISOString(),
+            updatedAt: new Date(d.updated_at).toISOString(),
           },
         });
       }
     }
 
     // Look up station emails
-    const station = await prisma.station.findUnique({
-      where: { icaoCode: deptIcao.toUpperCase() },
-    });
+    const { rows: stations } = await pool.query(
+      "SELECT * FROM stations WHERE icao_code = $1",
+      [deptIcao.toUpperCase()]
+    );
 
-    if (!station || station.emails.length === 0) {
+    if (stations.length === 0 || stations[0].emails.length === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -114,6 +142,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const station = stations[0];
 
     // Generate email content
     const emailSubject = formatEmailSubject({
@@ -139,65 +169,98 @@ export async function POST(req: NextRequest) {
     // Generate mailto URL
     const mailtoUrl = generateMailtoUrl({
       to: station.emails,
-      cc: station.ccEmails,
+      cc: station.cc_emails,
       subject: emailSubject,
       body: emailBody,
     });
 
     // If this is an update, mark original as UPDATED
     if (isUpdate && originalOrderId) {
-      await prisma.fuelOrder.update({
-        where: { id: originalOrderId },
-        data: { status: "UPDATED" },
-      });
+      await pool.query(
+        "UPDATE fuel_orders SET status = 'UPDATED', updated_at = NOW() WHERE id = $1",
+        [originalOrderId]
+      );
     }
 
     const parsedFuelLoad = fuelLoad ? parseFloat(String(fuelLoad)) : null;
+    const orderId = newId();
+    const now = new Date();
 
-    // Create the order
-    const order = await prisma.fuelOrder.create({
-      data: {
-        flightId: flightId || undefined,
+    await pool.query(
+      `INSERT INTO fuel_orders
+        (id, flight_id, flight_number, ac_registration, ac_type, dept_icao, dept_time,
+         fuel_load, dispatcher, status, sent_at, sent_to, cc_to, email_subject, email_body,
+         is_update, original_order_id, update_reason, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+      [
+        orderId,
+        flightId || null,
         flightNumber,
         acRegistration,
-        acType: acType || "Unknown",
-        deptIcao: deptIcao.toUpperCase(),
-        deptTime: new Date(deptTime),
-        fuelLoad: parsedFuelLoad,
+        acType || "Unknown",
+        deptIcao.toUpperCase(),
+        new Date(deptTime),
+        parsedFuelLoad,
         dispatcher,
-        status: "SENT",
-        sentAt: new Date(),
-        sentTo: station.emails,
-        ccTo: station.ccEmails,
+        "SENT",
+        now,
+        station.emails,
+        station.cc_emails,
         emailSubject,
         emailBody,
-        isUpdate: !!isUpdate,
-        originalOrderId: originalOrderId || null,
-        updateReason: updateReason || null,
-      },
-    });
+        !!isUpdate,
+        originalOrderId || null,
+        updateReason || null,
+        now,
+        now,
+      ]
+    );
 
-    // Update the flight record with fuel load and dispatcher so the board reflects ordered values
+    // Update the flight record with fuel load and dispatcher
     if (flightId) {
-      const updateData: Record<string, unknown> = {};
-      if (parsedFuelLoad !== null) updateData.fuelLoad = parsedFuelLoad;
-      if (dispatcher) updateData.dispatcher = dispatcher;
-      if (Object.keys(updateData).length > 0) {
-        await prisma.flight.update({
-          where: { id: flightId },
-          data: updateData,
-        });
+      const updates: string[] = [];
+      const uParams: unknown[] = [];
+      let uIdx = 1;
+      if (parsedFuelLoad !== null) {
+        updates.push(`fuel_load = $${uIdx++}`);
+        uParams.push(parsedFuelLoad);
+      }
+      if (dispatcher) {
+        updates.push(`dispatcher = $${uIdx++}`);
+        uParams.push(dispatcher);
+      }
+      if (updates.length > 0) {
+        uParams.push(flightId);
+        await pool.query(
+          `UPDATE flights SET ${updates.join(", ")} WHERE id = $${uIdx}`,
+          uParams
+        );
       }
     }
 
     return NextResponse.json({
       success: true,
       data: {
-        ...order,
-        deptTime: order.deptTime.toISOString(),
-        sentAt: order.sentAt?.toISOString() ?? null,
-        createdAt: order.createdAt.toISOString(),
-        updatedAt: order.updatedAt.toISOString(),
+        id: orderId,
+        flightId: flightId || null,
+        flightNumber,
+        acRegistration,
+        acType: acType || "Unknown",
+        deptIcao: deptIcao.toUpperCase(),
+        deptTime: new Date(deptTime).toISOString(),
+        fuelLoad: parsedFuelLoad,
+        dispatcher,
+        status: "SENT",
+        sentAt: now.toISOString(),
+        sentTo: station.emails,
+        ccTo: station.cc_emails,
+        emailSubject,
+        emailBody,
+        isUpdate: !!isUpdate,
+        originalOrderId: originalOrderId || null,
+        updateReason: updateReason || null,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
       },
       mailtoUrl,
       message: "Order created. Opening email client...",

@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import pool from "@/lib/db";
+import { ensureDb } from "@/lib/init-db";
+import { newId } from "@/lib/id";
 
 // GET /api/settings — get all settings
 export async function GET() {
   try {
-    const settings = await prisma.setting.findMany();
+    await ensureDb();
+    const { rows } = await pool.query("SELECT * FROM settings");
     const settingsMap: Record<string, string> = {};
-    for (const s of settings) {
+    for (const s of rows) {
       settingsMap[s.key] = s.value;
     }
 
@@ -23,17 +26,29 @@ export async function GET() {
 // PUT /api/settings — upsert settings
 export async function PUT(req: NextRequest) {
   try {
+    await ensureDb();
     const body = await req.json();
 
-    // body is { key: value, key: value, ... }
     const results = [];
     for (const [key, value] of Object.entries(body)) {
-      const setting = await prisma.setting.upsert({
-        where: { key },
-        update: { value: String(value) },
-        create: { key, value: String(value) },
-      });
-      results.push(setting);
+      const { rows: existing } = await pool.query(
+        "SELECT id FROM settings WHERE key = $1",
+        [key]
+      );
+
+      if (existing.length > 0) {
+        const { rows } = await pool.query(
+          "UPDATE settings SET value = $1, updated_at = NOW() WHERE key = $2 RETURNING *",
+          [String(value), key]
+        );
+        results.push(rows[0]);
+      } else {
+        const { rows } = await pool.query(
+          "INSERT INTO settings (id, key, value) VALUES ($1, $2, $3) RETURNING *",
+          [newId(), key, String(value)]
+        );
+        results.push(rows[0]);
+      }
     }
 
     return NextResponse.json({

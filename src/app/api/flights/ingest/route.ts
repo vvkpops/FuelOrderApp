@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import pool from "@/lib/db";
+import { ensureDb } from "@/lib/init-db";
+import { newId } from "@/lib/id";
 
 const FLIGHT_API_URL = process.env.FLIGHT_API_URL || "https://fdfeedapi.up.railway.app";
 const FLIGHT_API_KEY = process.env.FLIGHT_API_KEY || "";
@@ -30,6 +31,8 @@ interface FDAFlight {
  */
 export async function POST(req: NextRequest) {
   try {
+    await ensureDb();
+
     if (!FLIGHT_API_KEY) {
       return NextResponse.json(
         { success: false, error: "FLIGHT_API_KEY is not configured" },
@@ -91,7 +94,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Upsert flights — match on externalId (API id) to avoid duplicates
+    // Upsert flights — match on external_id to avoid duplicates
     const results = [];
     for (const flight of allFlights) {
       const deptTime = new Date(flight.departuretime);
@@ -107,36 +110,54 @@ export async function POST(req: NextRequest) {
       const arrivalTime = flight.arrivaltime ? new Date(flight.arrivaltime) : null;
       const eta = flight.eta ? new Date(flight.eta) : null;
 
-      const data = {
-        flightNumber: flight.callsign,
-        acRegistration: flight.acregistration,
-        acType: flight.actype,
-        deptIcao: flight.departureicao.toUpperCase(),
-        deptTime,
-        arrivalIcao: flight.arrivalicao?.toUpperCase() || null,
-        arrivalTime: arrivalTime && !isNaN(arrivalTime.getTime()) ? arrivalTime : null,
-        alternateIcao: flight.alternateicao?.toUpperCase() || null,
-        eta: eta && !isNaN(eta.getTime()) ? eta : null,
-        rawData: flight as unknown as Prisma.InputJsonValue,
-      };
+      // Check if exists
+      const { rows: existing } = await pool.query(
+        "SELECT id FROM flights WHERE external_id = $1",
+        [flight.id]
+      );
 
-      const existing = await prisma.flight.findUnique({
-        where: { externalId: flight.id },
-      });
-
-      if (existing) {
-        await prisma.flight.update({
-          where: { id: existing.id },
-          data,
-        });
+      if (existing.length > 0) {
+        await pool.query(
+          `UPDATE flights SET
+            flight_number = $1, ac_registration = $2, ac_type = $3,
+            dept_icao = $4, dept_time = $5, arrival_icao = $6,
+            arrival_time = $7, alternate_icao = $8, eta = $9, raw_data = $10
+          WHERE id = $11`,
+          [
+            flight.callsign,
+            flight.acregistration,
+            flight.actype,
+            flight.departureicao.toUpperCase(),
+            deptTime,
+            flight.arrivalicao?.toUpperCase() || null,
+            arrivalTime && !isNaN(arrivalTime.getTime()) ? arrivalTime : null,
+            flight.alternateicao?.toUpperCase() || null,
+            eta && !isNaN(eta.getTime()) ? eta : null,
+            JSON.stringify(flight),
+            existing[0].id,
+          ]
+        );
         results.push({ flightNumber: flight.callsign, status: "updated" });
       } else {
-        await prisma.flight.create({
-          data: {
-            ...data,
-            externalId: flight.id,
-          },
-        });
+        await pool.query(
+          `INSERT INTO flights (id, external_id, flight_number, ac_registration, ac_type,
+            dept_icao, dept_time, arrival_icao, arrival_time, alternate_icao, eta, raw_data)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [
+            newId(),
+            flight.id,
+            flight.callsign,
+            flight.acregistration,
+            flight.actype,
+            flight.departureicao.toUpperCase(),
+            deptTime,
+            flight.arrivalicao?.toUpperCase() || null,
+            arrivalTime && !isNaN(arrivalTime.getTime()) ? arrivalTime : null,
+            flight.alternateicao?.toUpperCase() || null,
+            eta && !isNaN(eta.getTime()) ? eta : null,
+            JSON.stringify(flight),
+          ]
+        );
         results.push({ flightNumber: flight.callsign, status: "created" });
       }
     }

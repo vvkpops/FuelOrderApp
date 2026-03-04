@@ -12,8 +12,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client + build Next.js (standalone)
-RUN npx prisma generate && npm run build
+# Build Next.js (standalone)
+RUN npm run build
 
 # ---- Runner ----
 FROM base AS runner
@@ -31,12 +31,9 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 # Copy public assets
 COPY --from=builder /app/public ./public
-# Copy Prisma schema (needed at runtime for some Prisma features)
-COPY --from=builder /app/prisma ./prisma
 
 USER nextjs
 
 EXPOSE 3000
 
-# Start the standalone Next.js server
 CMD ["node", "server.js"]
