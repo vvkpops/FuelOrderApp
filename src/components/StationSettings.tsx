@@ -7,7 +7,6 @@ import {
   Trash2,
   Edit3,
   X,
-  Settings2,
   RefreshCw,
 } from "lucide-react";
 import { useToast } from "./Toast";
@@ -22,14 +21,9 @@ interface Station {
   isActive: boolean;
 }
 
-interface AppSettings {
-  defaultDispatcher?: string;
-  [key: string]: string | undefined;
-}
 
 export function StationSettings() {
   const [stations, setStations] = useState<Station[]>([]);
-  const [settings, setSettings] = useState<AppSettings>({});
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -73,20 +67,10 @@ export function StationSettings() {
     }
   }, [addToast]);
 
-  const fetchSettings = useCallback(async () => {
-    try {
-      const res = await fetch("/api/settings");
-      const data = await res.json();
-      if (data.success) setSettings(data.data);
-    } catch {
-      // Silently fail
-    }
-  }, []);
 
   useEffect(() => {
     fetchStations();
-    fetchSettings();
-  }, [fetchStations, fetchSettings]);
+  }, [fetchStations]);
 
   const resetForm = () => {
     setForm({ icaoCode: "", name: "", timezone: "", emails: "", ccEmails: "" });
@@ -179,20 +163,6 @@ export function StationSettings() {
     setShowAddForm(false);
   };
 
-  const saveSettings = async () => {
-    try {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      });
-      const data = await res.json();
-      if (data.success) addToast("success", "Settings saved");
-      else addToast("error", data.error);
-    } catch {
-      addToast("error", "Failed to save settings");
-    }
-  };
 
   return (
     <div className="space-y-8">
@@ -203,37 +173,7 @@ export function StationSettings() {
           Configure station emails and application defaults
         </p>
 
-        <div className="bg-white dark:bg-gray-900/80 rounded-xl shadow-sm dark:shadow-lg dark:shadow-black/20 border border-gray-200 dark:border-gray-800 p-6 mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Settings2 size={18} className="text-gray-500 dark:text-emerald-500" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              General Settings
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
-                Default Dispatcher Initials
-              </label>
-              <input
-                type="text"
-                value={settings.defaultDispatcher || ""}
-                onChange={(e) =>
-                  setSettings((prev) => ({ ...prev, defaultDispatcher: e.target.value }))
-                }
-                placeholder="e.g. JD"
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
-              />
-            </div>
-          </div>
-          <button
-            onClick={saveSettings}
-            className="mt-4 flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200 text-sm font-medium shadow-lg shadow-emerald-600/20"
-          >
-            <Save size={16} />
-            Save Settings
-          </button>
-        </div>
+
       </div>
 
       {/* Station Configuration */}
@@ -305,15 +245,63 @@ export function StationSettings() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
-                  Timezone <span className="text-gray-400 dark:text-gray-600 font-normal">IANA format</span>
+                  Timezone
                 </label>
-                <input
-                  type="text"
+                <select
                   value={form.timezone}
                   onChange={(e) => setForm((p) => ({ ...p, timezone: e.target.value }))}
-                  placeholder="e.g. America/Toronto"
                   className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
+                >
+                  <option value="">Select timezone...</option>
+                  <optgroup label="North America">
+                    <option value="America/St_Johns">America/St_Johns (NST/NDT)</option>
+                    <option value="America/Halifax">America/Halifax (AST/ADT)</option>
+                    <option value="America/Moncton">America/Moncton (AST/ADT)</option>
+                    <option value="America/Toronto">America/Toronto (EST/EDT)</option>
+                    <option value="America/New_York">America/New_York (EST/EDT)</option>
+                    <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                    <option value="America/Winnipeg">America/Winnipeg (CST/CDT)</option>
+                    <option value="America/Regina">America/Regina (CST)</option>
+                    <option value="America/Edmonton">America/Edmonton (MST/MDT)</option>
+                    <option value="America/Denver">America/Denver (MST/MDT)</option>
+                    <option value="America/Vancouver">America/Vancouver (PST/PDT)</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                    <option value="America/Anchorage">America/Anchorage (AKST/AKDT)</option>
+                    <option value="America/Whitehorse">America/Whitehorse (MST)</option>
+                    <option value="America/Yellowknife">America/Yellowknife (MST/MDT)</option>
+                    <option value="America/Iqaluit">America/Iqaluit (EST/EDT)</option>
+                    <option value="America/Goose_Bay">America/Goose_Bay (AST/ADT)</option>
+                    <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
+                  </optgroup>
+                  <optgroup label="Caribbean / Central America">
+                    <option value="America/Nassau">America/Nassau (EST/EDT)</option>
+                    <option value="America/Jamaica">America/Jamaica (EST)</option>
+                    <option value="America/Puerto_Rico">America/Puerto_Rico (AST)</option>
+                    <option value="America/Barbados">America/Barbados (AST)</option>
+                    <option value="America/Curacao">America/Curacao (AST)</option>
+                    <option value="America/Panama">America/Panama (EST)</option>
+                    <option value="America/Mexico_City">America/Mexico_City (CST/CDT)</option>
+                    <option value="America/Cancun">America/Cancun (EST)</option>
+                  </optgroup>
+                  <optgroup label="Europe">
+                    <option value="Europe/London">Europe/London (GMT/BST)</option>
+                    <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                    <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                    <option value="Europe/Amsterdam">Europe/Amsterdam (CET/CEST)</option>
+                    <option value="Europe/Zurich">Europe/Zurich (CET/CEST)</option>
+                    <option value="Europe/Rome">Europe/Rome (CET/CEST)</option>
+                    <option value="Europe/Madrid">Europe/Madrid (CET/CEST)</option>
+                    <option value="Europe/Lisbon">Europe/Lisbon (WET/WEST)</option>
+                    <option value="Atlantic/Reykjavik">Atlantic/Reykjavik (GMT)</option>
+                  </optgroup>
+                  <optgroup label="Other">
+                    <option value="UTC">UTC</option>
+                    <option value="Atlantic/Bermuda">Atlantic/Bermuda (AST/ADT)</option>
+                    <option value="Atlantic/Azores">Atlantic/Azores (AZOT/AZOST)</option>
+                    <option value="America/Bogota">America/Bogota (COT)</option>
+                    <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
+                  </optgroup>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
