@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Ordering System - Flight Dispatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=13">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/station-settings.css') }}?v=13">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>✈️ Fuel Ordering System</h1>
+                    <p class="subtitle">Automated Flight Fuel Management</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('flights')">📋 Flight Orders</button>
+            <button class="tab-button" onclick="switchTab('sent')">📧 Sent Orders</button>
+        </div>
+
+        <!-- Flight Orders Tab -->
+        <div id="flights-tab" class="tab-content active">
+            <div class="action-bar">
+                <span class="badge" id="flight-count">0 Flights</span>
+                <div>
+                    <button onclick="refreshFlights()" class="btn btn-primary">🔄 Refresh from CSV File</button>
+                    <button onclick="openStationSettings()" class="btn btn-secondary">⚙️ Station Settings</button>
+                </div>
+            </div>
+            <div id="flights-list"></div>
+        </div>
+
+        <!-- Sent Orders Tab -->
+        <div id="sent-tab" class="tab-content">
+            <div class="action-bar">
+                <span class="badge" id="sent-count">0 Sent Orders</span>
+                <button onclick="loadSentOrders()" class="btn btn-primary">🔄 Refresh</button>
+            </div>
+            <div id="sent-orders-container">
+                <p class="placeholder">Click "Refresh" to load sent orders</p>
+            </div>
+        </div>
+
+        <!-- Email Preview Modal -->
+        <div id="email-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Email Preview</h2>
+                    <span class="close" onclick="closeModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="email-preview">
+                        <div class="email-field">
+                            <strong>To:</strong>
+                            <span id="preview-to"></span>
+                        </div>
+                        <div class="email-field">
+                            <strong>CC:</strong>
+                            <span id="preview-cc"></span>
+                        </div>
+                        <div class="email-field">
+                            <strong>Subject:</strong>
+                            <span id="preview-subject"></span>
+                        </div>
+                        <div class="email-body">
+                            <pre id="preview-body"></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="closeModal()" class="btn btn-secondary">Cancel</button>
+                    <button onclick="confirmSend()" class="btn btn-success">✉️ Send Order</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Update Order Modal -->
+        <div id="update-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Update Fuel Order</h2>
+                    <span class="close" onclick="closeUpdateModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="update-form">
+                        <div class="form-group">
+                            <label>Flight Number:</label>
+                            <input type="text" id="update-flight-number" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Aircraft Registration:</label>
+                            <input type="text" id="update-aircraft" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Station:</label>
+                            <input type="text" id="update-station" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Scheduled Out Time:</label>
+                            <input type="text" id="update-time" required>
+                        </div>
+                        
+                        <!-- Fuel Unit Selector -->
+                        <div class="fuel-unit-selector">
+                            <label>
+                                <input type="radio" name="update-unit" value="lbs" checked onchange="changeUpdateFuelUnit('lbs')">
+                                LBS
+                            </label>
+                            <label>
+                                <input type="radio" name="update-unit" value="liters" onchange="changeUpdateFuelUnit('liters')">
+                                Liters
+                            </label>
+                        </div>
+                        
+                        <div class="form-group" id="update-fuel-container">
+                            <label id="update-fuel-label">Fuel Order (LBS):</label>
+                            <input type="text" id="update-fuel-amount" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Dispatcher Initials:</label>
+                            <input type="text" id="update-dispatcher" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Update Reason:</label>
+                            <input type="text" id="update-reason" placeholder="e.g., Aircraft swap">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="closeUpdateModal()" class="btn btn-secondary">Cancel</button>
+                    <button onclick="submitUpdate()" class="btn btn-warning">📝 Update & Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Station Email Settings Modal -->
+        <div id="station-settings-modal" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>⚙️ Station Email Configuration</h2>
+                    <span class="close" onclick="closeStationSettings()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p class="info-text">Configure email addresses for each station. Multiple emails can be separated by commas.</p>
+                    <div id="station-list" class="station-list">
+                        <!-- Station emails will be loaded here -->
+                    </div>
+                    <div class="add-station-section">
+                        <h3>Add New Station</h3>
+                        <div class="form-row">
+                            <div class="station-input-wrapper">
+                                <input type="text" 
+                                       id="new-station-code" 
+                                       placeholder="Station Code (e.g., JFK)" 
+                                       class="station-code-input"
+                                       list="station-suggestions"
+                                       autocomplete="off"
+                                       oninput="filterStationSuggestions(this.value)">
+                                <datalist id="station-suggestions">
+                                    <!-- Common airport codes will be populated here -->
+                                </datalist>
+                            </div>
+                            <input type="text" id="new-station-email" placeholder="Email addresses (comma-separated)" class="station-email-input">
+                            <button onclick="addStation()" class="btn btn-primary btn-small">+ Add</button>
+                        </div>
+                        <div id="station-suggestions-live" class="live-suggestions"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="closeStationSettings()" class="btn btn-secondary">Cancel</button>
+                    <button onclick="saveStationSettings()" class="btn btn-success">💾 Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=13"></script>
+</body>
+</html>

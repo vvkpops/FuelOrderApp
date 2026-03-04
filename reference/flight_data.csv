@@ -1,0 +1,4 @@
+Flight Number,Aircraft Registration,Station,Scheduled Out Time,Fuel Order (Liters),Fuel Order (LBS),Dispatcher Initials
+TEST001,N999ZZ,JFK,2026-01-24 20:00 UTC,10000,22046,TEST
+AA1234,N123AA,LAX,2026-01-24 18:30 UTC,15000,33069,JD
+UA5678,N456UA,ORD,2026-01-24 16:45 UTC,12000,26455,MS

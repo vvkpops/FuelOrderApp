@@ -1,0 +1,164 @@
+================================================================================
+   FUEL ORDERING APPLICATION - SETUP CHECKLIST (CSV VERSION)
+================================================================================
+
+✅ Files are ready! Simplified setup - NO Google Sheets API needed!
+
+================================================================================
+STEP 1: INSTALL PYTHON DEPENDENCIES (2 minutes)
+================================================================================
+
+Open Command Prompt in this folder and run:
+
+    pip install -r requirements.txt
+
+Wait for all packages to install...
+
+================================================================================
+STEP 2: SET UP GMAIL (3 minutes)
+================================================================================
+
+A. Enable 2-Step Verification:
+   Go to: https://myaccount.google.com/security
+
+B. Create App Password:
+   1. Go to: https://myaccount.google.com/apppasswords
+   2. Generate password for "Mail"
+   3. Copy the 16-character code
+
+================================================================================
+STEP 4: EDIT .ENV FILE (2 minutes)
+================================================================================
+
+Open the file: .env (in this folder)
+
+Fill in these 3 required values:
+   1. EMAIL_ADDRESS = your Gmail address
+   2. EMAIL_PASSWORD = your 16-char app password (from Step 3)
+   3. GOOGLE_SHEET_ID = your sheet ID (from Step 2)
+
+For testing, you can use your own email as STATION_JFK
+
+Save the file!
+
+================================================================================
+STEP 4: RUN THE APPLICATION (1 minute)
+================================================================================
+
+Double-click: start.bat
+
+OR run in Command Prompt:
+
+    python app.py
+
+You should see:
+    * Running on http://0.0.0.0:5000
+    Created flight_data.csv with sample flight data
+
+================================================================================
+STEP 5: TEST IT! (5 minutes)
+================================================================================
+
+1. Open browser: http://localhost:5000
+
+2. Click "Refresh from Google Sheets" (now reads from CSV!)
+   → Should load 3 sample flights (TEST001, AA1234, UA5678)
+
+3. Click "Draft Email" on any flightil@gmail.com
+
+Example:
+   EMAIL_ADDRESS=john.dispatcher@gmail.com
+   EMAIL_PASSWORD=abcdefghijklmnop
+   STATION_JFK=john.dispatcher@gmail.com
+   → Preview the email
+
+4. Click "Send Order"
+   → Check your email inbox!
+
+5. Go to "Sent Orders" tab
+   → See your sent order
+
+6. Click "Update Order"
+   → Test the update feature
+
+================================================================================
+✅ QUICK TEST CHECKLIST
+================================================================================
+
+[ ] .env file edited with EMAIL_ADDRESS and EMAIL_PASSWORD
+[ ] Application starts without errors
+[ ] flight_data.csv auto-created with sample data
+[ ] Browser opens to http://localhost:5000
+[ ] Sample flights load (TEST001, AA1234, UA5678)
+[ ] Email preview works
+[ ] Test email received in inbox
+[ ] Sent order appears in "Sent Orders" tab
+
+================================================================================
+📝 EDITING FLIGHT DATA (Easy!)
+================================================================================
+
+Your flight data is stored in: flight_data.csv
+
+You can edit this fisend email" 
+Fix: Verify EMAIL_PASSWORD is the App Password (not regular password)
+     Make sure 2-Step Verification is enabled on Gmail
+
+Problem: "No email configured for station"
+Fix: Add STATION_JFK=your-email@gmail.com to .env file
+     Restart the application
+
+Problem: Application won't start
+Fix: Run: pip install -r requirements.txt
+
+Problem: No flights showing
+Fix: Check that flight_data.csv exists with data
+     The file is auto-created on first run with sample flightsab
+
+================================================================================
+🆘 TROUBLESHOOTING
+================================================================================
+
+Problem: "Failed to authenticate with Google Sheets"
+Fix: Check that credentials.json exists and sheet is shared
+
+Problem: "Failed to send email" 
+Fix: Verify EMAIL_PASSWORD is the App Password (not regular password)
+
+Problem: "No email configured for station"
+Setup is now MUCH simpler - only 4 steps!
+
+No Google Sheets API, no credentials.json, no sharing permissions!
+Just:
+   1. Install dependencies (pip install)
+   2. Get Gmail App Password
+   3. Edit .env file (2 values)
+   4. Run the app!
+
+The CSV file is automatically created with sample flights.
+Edit flight_data.csv in Excel to add your real flight data.
+
+Total setup time: ~10 minutes
+Test time: ~5 minutes
+
+================================================================================
+📚 DOCUMENTATION
+================================================================================
+
+For detailed help, see:
+   → QUICKSTART.md (15-minute guide)
+   → SETUP_GUIDE.md (step-by-step details)
+   → INDEX.md (documentation navigator)
+
+================================================================================
+🎉 READY TO GO!
+================================================================================
+
+Once Steps 1-5 are complete, you can start testing.
+
+The test should take about 5 minutes. You'll send a test fuel order
+to yourself via email and verify everything works.
+
+Good luck! ✈️
+
+================================================================================

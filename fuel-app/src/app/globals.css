@@ -1,0 +1,220 @@
+@import "tailwindcss";
+
+/* Tell Tailwind v4 to activate dark: utilities via .dark class (used by next-themes) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─────────────────────────────────────────────────────────
+   Aviation Dark Theme — Fuel Ordering Dispatch System
+   Inspired by flight deck displays and radar screens
+   ───────────────────────────────────────────────────────── */
+
+:root {
+  --background: #f0f4f8;
+  --foreground: #0f172a;
+  --av-bg-deep: #f0f4f8;
+  --av-bg-main: #ffffff;
+  --av-bg-card: #ffffff;
+  --av-bg-elevated: #f1f5f9;
+  --av-border: #cbd5e1;
+  --av-border-subtle: #e2e8f0;
+  --av-accent: #0d9488;
+  --av-accent-bright: #14b8a6;
+  --av-accent-glow: rgba(13, 148, 136, 0.15);
+  --av-text-primary: #0f172a;
+  --av-text-secondary: #475569;
+  --av-text-muted: #94a3b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+.dark {
+  --background: #030712;
+  --foreground: #e2e8f0;
+  --av-bg-deep: #030712;
+  --av-bg-main: #0b1120;
+  --av-bg-card: #111827;
+  --av-bg-elevated: #1a2332;
+  --av-border: #1e293b;
+  --av-border-subtle: #162032;
+  --av-accent: #10b981;
+  --av-accent-bright: #34d399;
+  --av-accent-glow: rgba(16, 185, 129, 0.18);
+  --av-text-primary: #f1f5f9;
+  --av-text-secondary: #94a3b8;
+  --av-text-muted: #64748b;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* ── DARK BODY GRADIENT ──────────────────────────────── */
+.dark body {
+  background: linear-gradient(180deg, #030712 0%, #0a0f1f 50%, #060c1a 100%);
+  background-attachment: fixed;
+}
+
+/* ── AVIATION GLOW EFFECTS ───────────────────────────── */
+.av-glow {
+  box-shadow:
+    0 0 15px rgba(16, 185, 129, 0.15),
+    0 0 30px rgba(16, 185, 129, 0.08),
+    0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.av-glow-sm {
+  box-shadow:
+    0 0 8px rgba(16, 185, 129, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.av-border-glow {
+  border-color: var(--av-accent) !important;
+  box-shadow:
+    0 0 8px var(--av-accent-glow),
+    inset 0 0 4px var(--av-accent-glow);
+}
+
+/* ── AVIATION PANEL STYLES ───────────────────────────── */
+.av-panel {
+  background: var(--av-bg-card);
+  border: 1px solid var(--av-border);
+  border-radius: 12px;
+}
+
+.dark .av-panel {
+  background: linear-gradient(180deg, #111827 0%, #0d1525 100%);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.03) inset,
+    0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.av-panel-elevated {
+  background: var(--av-bg-elevated);
+  border: 1px solid var(--av-border);
+  border-radius: 12px;
+}
+
+/* ── RUNWAY STRIPE (top bar) ─────────────────────────── */
+.av-runway-stripe {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #10b981 15%,
+    #10b981 17%,
+    transparent 17%,
+    transparent 20%,
+    #10b981 20%,
+    #10b981 22%,
+    transparent 22%,
+    transparent 48%,
+    #10b981 48%,
+    #10b981 52%,
+    transparent 52%,
+    transparent 78%,
+    #10b981 78%,
+    #10b981 80%,
+    transparent 80%,
+    transparent 83%,
+    #10b981 83%,
+    #10b981 85%,
+    transparent 85%
+  );
+  opacity: 0.5;
+}
+
+/* ── SCANNING LINE ANIMATION ─────────────────────────── */
+@keyframes av-scan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.av-scan-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--av-accent-glow),
+    transparent
+  );
+  animation: av-scan 2s ease-in-out infinite;
+}
+
+/* ── TOAST SLIDE-IN ──────────────────────────────────── */
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in { animation: slide-in 0.3s ease-out; }
+
+/* ── PULSE GLOW ──────────────────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px var(--av-accent-glow); }
+  50% { box-shadow: 0 0 20px var(--av-accent-glow), 0 0 40px rgba(16, 185, 129, 0.06); }
+}
+.animate-pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
+
+/* ── SCROLLBARS ──────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+.dark ::-webkit-scrollbar-thumb { background: #1e293b; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+/* ── INPUT FOCUS — emerald glow ──────────────────────── */
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #10b981 !important;
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.3),
+    0 0 12px rgba(16, 185, 129, 0.15),
+    0 0 24px rgba(16, 185, 129, 0.05) !important;
+  outline: none;
+}
+
+/* ── TABLE ROW HOVER ─────────────────────────────────── */
+.dark tr.av-row:hover {
+  background: rgba(16, 185, 129, 0.05) !important;
+}
+
+.dark tr.av-row {
+  transition: background-color 0.15s ease;
+}
+
+/* ── DARK CARD hover lift ────────────────────────────── */
+.dark .av-card-hover:hover {
+  border-color: #334155;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 8px rgba(16, 185, 129, 0.06);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+/* ── SELECT / OPTION dark styles ─────────────────────── */
+.dark select option {
+  background: #111827;
+  color: #e2e8f0;
+}
+
+/* ── PLACEHOLDER color ───────────────────────────────── */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #475569;
+}
+
+/* ── Dark date input icon override ───────────────────── */
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+}
+
