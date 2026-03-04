@@ -173,8 +173,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("POST /api/flights/ingest error:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { success: false, error: "Failed to ingest flight data" },
+      { success: false, error: "Failed to ingest flight data", detail: message },
       { status: 500 }
     );
   }
