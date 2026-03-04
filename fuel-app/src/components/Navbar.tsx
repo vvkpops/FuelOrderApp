@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
-import { Plane, History, Settings, Fuel } from "lucide-react";
+import { useAuth } from "./AuthGate";
+import { Plane, History, Settings, Fuel, LogOut } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Flights", icon: Plane },
@@ -13,6 +14,7 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   return (
     <nav className="bg-white dark:bg-gray-950/95 dark:backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40">
@@ -55,8 +57,15 @@ export function Navbar() {
                 </Link>
               );
             })}
-            <div className="ml-2 border-l border-gray-200 dark:border-gray-700 pl-2">
+            <div className="ml-2 border-l border-gray-200 dark:border-gray-700 pl-2 flex items-center gap-1">
               <ThemeToggle />
+              <button
+                onClick={logout}
+                title="Sign out"
+                className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-colors"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           </div>
         </div>
