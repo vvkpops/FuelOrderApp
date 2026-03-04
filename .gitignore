@@ -3,6 +3,9 @@ venv/
 __pycache__/
 *.pyc
 
+# Reference docs (not needed in deploy)
+reference/
+
 # OS files
 .DS_Store
 Thumbs.db
