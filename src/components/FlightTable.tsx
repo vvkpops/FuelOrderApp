@@ -66,8 +66,8 @@ export function FlightTable() {
     return "deptTime";
   });
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("fb_sortDir") as "asc" | "desc") || "asc";
-    return "asc";
+    if (typeof window !== "undefined") return (localStorage.getItem("fb_sortDir") as "asc" | "desc") || "desc";
+    return "desc";
   });
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -189,7 +189,7 @@ export function FlightTable() {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDir("asc");
+      setSortDir("desc");
     }
   };
 

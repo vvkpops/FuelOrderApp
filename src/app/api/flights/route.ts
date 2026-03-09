@@ -185,9 +185,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Sort by departure time
+    // Sort by departure time (latest first)
     filteredFlights.sort((a, b) => 
-      new Date(a.departuretime).getTime() - new Date(b.departuretime).getTime()
+      new Date(b.departuretime).getTime() - new Date(a.departuretime).getTime()
     );
 
     return NextResponse.json({
