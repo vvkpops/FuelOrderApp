@@ -99,12 +99,12 @@ export async function GET(req: NextRequest) {
     );
 
     // Query orders - handle both flight_hash (new) and flight_number+dept_icao+date (legacy)
-    const orderMap = new Map<string, { hasOrder: boolean; latestStatus: string | null; fuelLoad: number | null; dispatcher: string | null }>();
+    const orderMap = new Map<string, { hasOrder: boolean; latestStatus: string | null; fuelLoad: number | null; dispatcher: string | null; orderAcReg: string | null }>();
     
     try {
       // First try to get orders by flight_hash
       const { rows: hashOrders } = await pool.query(
-        `SELECT flight_hash, flight_number, dept_icao, dept_time, id, status, sent_at, fuel_load, dispatcher
+        `SELECT flight_hash, flight_number, dept_icao, dept_time, id, status, sent_at, fuel_load, dispatcher, ac_registration
          FROM fuel_orders 
          WHERE (flight_hash = ANY($1) OR flight_hash IS NULL) AND status != 'CANCELLED'
          ORDER BY sent_at DESC`,
@@ -120,6 +120,7 @@ export async function GET(req: NextRequest) {
             latestStatus: o.status,
             fuelLoad: o.fuel_load,
             dispatcher: o.dispatcher,
+            orderAcReg: o.ac_registration,
           });
         } else if (!o.flight_hash) {
           // Legacy order without flight_hash - match by flight details
@@ -141,6 +142,7 @@ export async function GET(req: NextRequest) {
                 latestStatus: o.status,
                 fuelLoad: o.fuel_load,
                 dispatcher: o.dispatcher,
+                orderAcReg: o.ac_registration,
               });
             }
           }
@@ -151,7 +153,7 @@ export async function GET(req: NextRequest) {
       console.error("Order hash lookup failed, trying legacy:", e);
       try {
         const { rows: legacyOrders } = await pool.query(
-          `SELECT flight_number, dept_icao, dept_time, id, status, sent_at, fuel_load, dispatcher
+          `SELECT flight_number, dept_icao, dept_time, id, status, sent_at, fuel_load, dispatcher, ac_registration
            FROM fuel_orders 
            WHERE status != 'CANCELLED'
            ORDER BY sent_at DESC`
@@ -176,6 +178,7 @@ export async function GET(req: NextRequest) {
                 latestStatus: o.status,
                 fuelLoad: o.fuel_load,
                 dispatcher: o.dispatcher,
+                orderAcReg: o.ac_registration,
               });
             }
           }
@@ -195,6 +198,10 @@ export async function GET(req: NextRequest) {
       data: filteredFlights.map((f) => {
         const hash = flightHash(f.callsign, f.departureicao, f.departuretime);
         const orderInfo = orderMap.get(hash);
+        const currentReg = f.acregistration?.toUpperCase();
+        const orderReg = orderInfo?.orderAcReg?.toUpperCase();
+        // Check if A/C registration changed since order was sent
+        const acRegChanged = orderInfo?.hasOrder && orderReg && currentReg !== orderReg;
         return {
           id: hash, // Use flight hash as the unique ID
           flightHash: hash,
@@ -211,6 +218,8 @@ export async function GET(req: NextRequest) {
           dispatcher: orderInfo?.dispatcher || null,
           hasOrder: orderInfo?.hasOrder || false,
           latestOrderStatus: orderInfo?.latestStatus || null,
+          orderAcReg: orderInfo?.orderAcReg || null,
+          acRegChanged: acRegChanged || false,
         };
       }),
     });

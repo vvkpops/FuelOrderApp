@@ -32,6 +32,8 @@ interface Flight {
   dispatcher: string | null;
   hasOrder: boolean;
   latestOrderStatus: string | null;
+  orderAcReg: string | null;
+  acRegChanged: boolean;
 }
 
 export function FlightTable() {
@@ -229,6 +231,20 @@ export function FlightTable() {
 
   const statusBadge = (flight: Flight) => {
     if (!flight.hasOrder) return null;
+    
+    // Show A/C REG changed warning if registration differs from order
+    if (flight.acRegChanged) {
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-400 dark:border dark:border-orange-500/30 flex items-center gap-1">
+            <AlertTriangle size={12} />
+            A/C REG changed
+          </span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Was: {flight.orderAcReg}</span>
+        </div>
+      );
+    }
+    
     const colors: Record<string, string> = {
       PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-400 dark:border dark:border-amber-500/30",
       SENT: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border dark:border-emerald-500/30",
@@ -468,12 +484,19 @@ export function FlightTable() {
                           setShowOrderModal(true);
                         }}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          flight.hasOrder
+                          flight.acRegChanged
+                            ? "bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:hover:bg-orange-500/20 dark:border dark:border-orange-500/30"
+                            : flight.hasOrder
                             ? "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20 dark:border dark:border-amber-500/30"
                             : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 dark:border dark:border-emerald-500/30"
                         }`}
                       >
-                        {flight.hasOrder ? (
+                        {flight.acRegChanged ? (
+                          <>
+                            <AlertTriangle size={14} />
+                            Verify order
+                          </>
+                        ) : flight.hasOrder ? (
                           <>
                             <Edit3 size={14} />
                             Update
