@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
       originalOrderId,
       updateReason,
       timeFormat,
+      autoSend,
     } = body;
 
     if (!flightNumber || !acRegistration || !deptIcao || !dispatcher) {
@@ -224,6 +225,9 @@ export async function POST(req: NextRequest) {
     const parsedFuelLoad = fuelLoad ? parseFloat(String(fuelLoad)) : null;
     const orderId = newId();
     const now = new Date();
+    
+    // Status: GENERATED if opening email client, SENT if auto-sent
+    const orderStatus = autoSend ? "SENT" : "GENERATED";
 
     // Try with flight_hash, fallback to without if column doesn't exist
     try {
@@ -243,7 +247,7 @@ export async function POST(req: NextRequest) {
           new Date(deptTime),
           parsedFuelLoad,
           dispatcher,
-          "SENT",
+          orderStatus,
           now,
           station.emails,
           station.cc_emails,
@@ -273,7 +277,7 @@ export async function POST(req: NextRequest) {
           new Date(deptTime),
           parsedFuelLoad,
           dispatcher,
-          "SENT",
+          orderStatus,
           now,
           station.emails,
           station.cc_emails,
@@ -303,7 +307,7 @@ export async function POST(req: NextRequest) {
         deptTime: new Date(deptTime).toISOString(),
         fuelLoad: parsedFuelLoad,
         dispatcher,
-        status: "SENT",
+        status: orderStatus,
         sentAt: now.toISOString(),
         sentTo: station.emails,
         ccTo: station.cc_emails,

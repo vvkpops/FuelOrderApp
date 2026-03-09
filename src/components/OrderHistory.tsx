@@ -84,10 +84,19 @@ export function OrderHistory() {
   });
 
   const statusColors: Record<string, string> = {
-    PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-400 dark:border dark:border-amber-500/30",
-    SENT: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border dark:border-emerald-500/30",
-    UPDATED: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-400 dark:border dark:border-sky-500/30",
-    CANCELLED: "bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-400 dark:border dark:border-red-500/30",
+    PENDING: "av-badge-amber",
+    GENERATED: "av-badge-blue",
+    SENT: "av-badge-green",
+    UPDATED: "av-badge-blue",
+    CANCELLED: "av-badge-red",
+  };
+
+  const statusLabels: Record<string, string> = {
+    PENDING: "Pending",
+    GENERATED: "Generated",
+    SENT: "Sent",
+    UPDATED: "Updated",
+    CANCELLED: "Cancelled",
   };
 
   const SortIcon = ({ field }: { field: string }) => {
@@ -100,46 +109,47 @@ export function OrderHistory() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Order History</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-500 mt-1 font-mono">
-            {sorted.length} of {orders.length} orders
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Order History</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-500 mt-1">
+            <span className="font-mono">{sorted.length}</span> of <span className="font-mono">{orders.length}</span> orders
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search orders..."
+              placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none w-56"
+              className="pl-9 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200 w-44"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
           >
             <option value="">All Status</option>
             <option value="PENDING">Pending</option>
+            <option value="GENERATED">Generated</option>
             <option value="SENT">Sent</option>
             <option value="UPDATED">Updated</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
           <button
             onClick={fetchOrders}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-400"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500 dark:text-slate-400"
             title="Refresh"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
           <button
             onClick={exportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200 text-sm font-medium shadow-lg shadow-emerald-600/20"
+            className="flex items-center gap-2 px-4 py-2 av-btn-primary rounded-lg text-sm"
           >
             <Download size={16} />
-            Export CSV
+            Export
           </button>
         </div>
       </div>
@@ -147,19 +157,19 @@ export function OrderHistory() {
       {/* Order Cards */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <RefreshCw size={24} className="animate-spin text-emerald-500 mr-3" />
-          <span className="text-gray-500 dark:text-gray-400">Loading orders...</span>
+          <RefreshCw size={24} className="animate-spin text-sky-500 mr-3" />
+          <span className="text-slate-500 dark:text-slate-400">Loading orders...</span>
         </div>
       ) : sorted.length === 0 ? (
-        <div className="bg-white dark:bg-gray-900/80 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 py-16 text-center text-gray-500 dark:text-gray-500">
+        <div className="av-panel py-16 text-center text-slate-500 dark:text-slate-500">
           No orders found.
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {sorted.map((order) => (
             <div
               key={order.id}
-              className="bg-white dark:bg-gray-900/80 rounded-xl shadow-sm dark:shadow-lg dark:shadow-black/20 border border-gray-200 dark:border-gray-800 overflow-hidden transition-all hover:shadow-md dark:hover:border-gray-700"
+              className="av-panel av-card-hover overflow-hidden"
             >
               {/* Card Header Row */}
               <div
@@ -208,7 +218,7 @@ export function OrderHistory() {
                 <div className="flex items-center gap-3 shrink-0 ml-4">
                   {/* Status Badge */}
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusColors[order.status] || ""}`}>
-                    {order.status}
+                    {statusLabels[order.status] || order.status}
                   </span>
                   {/* Expand Arrow */}
                   {expandedId === order.id ? (

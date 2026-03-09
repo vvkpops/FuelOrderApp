@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Send, AlertTriangle, Eye, Plus, FileText } from "lucide-react";
+import { useState, useEffect, Fragment } from "react";
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from "@headlessui/react";
+import { X, AlertTriangle, Eye, Plus, FileText } from "lucide-react";
 import { useToast } from "./Toast";
 import { formatEmailSubject, formatEmailBody, generateMailtoUrl } from "@/lib/email";
 
@@ -232,29 +233,49 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm" onClick={onClose} />
+    <Transition appear show={true} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <TransitionChild
+          as={Fragment}
+          enter="ease-out duration-200"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-150"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm" />
+        </TransitionChild>
 
-      {/* Modal */}
-      <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl dark:shadow-black/50 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700/60">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700/60">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-              {isUpdate ? "Update Fuel Order" : "Generate Fuel Order"}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-0.5 font-mono">
-              {form.flightNumber} &bull; {form.deptIcao} &bull; {form.acRegistration}
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-gray-500 dark:text-gray-400">
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <TransitionChild
+              as={Fragment}
+              enter="ease-out duration-200"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-150"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <DialogPanel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-2xl dark:shadow-black/50 border border-slate-200 dark:border-slate-700/60 transition-all">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700/60">
+                  <div>
+                    <DialogTitle as="h2" className="text-lg font-bold text-slate-900 dark:text-white">
+                      {isUpdate ? "Update Fuel Order" : "Generate Fuel Order"}
+                    </DialogTitle>
+                    <p className="text-sm text-slate-500 dark:text-slate-500 mt-0.5 font-mono">
+                      {form.flightNumber} • {form.deptIcao} • {form.acRegistration}
+                    </p>
+                  </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400">
             <X size={20} />
           </button>
         </div>
 
         {/* Form */}
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
           {isUpdate && (
             <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
               <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
@@ -266,59 +287,59 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                 Flight Number
               </label>
               <input
                 type="text"
                 value={form.flightNumber}
                 onChange={(e) => handleChange("flightNumber", e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none font-mono"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200 font-mono"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
-                AC Registration
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
+                Registration
               </label>
               <input
                 type="text"
                 value={form.acRegistration}
                 onChange={(e) => handleChange("acRegistration", e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none font-mono"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200 font-mono"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                 AC Type
               </label>
               <input
                 type="text"
                 value={form.acType}
                 onChange={(e) => handleChange("acType", e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                 Dept ICAO
               </label>
               <input
                 type="text"
                 value={form.deptIcao}
                 onChange={(e) => handleChange("deptIcao", e.target.value.toUpperCase())}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 font-mono focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200 font-mono"
                 maxLength={4}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
-                Departure Time (UTC)
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
+                Departure Time
               </label>
               <input
                 type="datetime-local"
                 value={form.deptTime ? form.deptTime.slice(0, 16) : ""}
                 onChange={(e) => handleChange("deptTime", new Date(e.target.value).toISOString())}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
               />
               <div className="flex items-center gap-4 mt-2">
                 <label className="flex items-center gap-1.5 cursor-pointer">
@@ -328,9 +349,9 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
                     value="local"
                     checked={timeFormat === "local"}
                     onChange={() => setTimeFormat("local")}
-                    className="accent-emerald-500"
+                    className="accent-sky-500"
                   />
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                  <span className="text-xs text-slate-600 dark:text-slate-400">
                     Local{stationTimezone ? ` (${stationTimezone.split("/").pop()?.replace(/_/g, " ")})` : ""}
                   </span>
                 </label>
@@ -341,31 +362,31 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
                     value="utc"
                     checked={timeFormat === "utc"}
                     onChange={() => setTimeFormat("utc")}
-                    className="accent-emerald-500"
+                    className="accent-sky-500"
                   />
-                  <span className="text-xs text-gray-600 dark:text-gray-400">UTC</span>
+                  <span className="text-xs text-slate-600 dark:text-slate-400">UTC</span>
                 </label>
               </div>
               {formattedDeptTime && (
-                <p className="mt-1.5 text-xs font-medium font-mono text-emerald-600 dark:text-emerald-400">
-                  Email will show: {formattedDeptTime}
+                <p className="mt-1.5 text-xs font-medium font-mono text-sky-600 dark:text-sky-400">
+                  → {formattedDeptTime}
                 </p>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                 Fuel Load (LBS) {!form.fuelLoad && <span className="text-amber-500">*</span>}
               </label>
               <input
                 type="number"
                 value={form.fuelLoad}
                 onChange={(e) => handleChange("fuelLoad", e.target.value)}
-                placeholder="Enter fuel load..."
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none font-mono"
+                placeholder="Enter fuel..."
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200 font-mono"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                 Dispatcher *
               </label>
               <input
@@ -373,12 +394,12 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
                 value={form.dispatcher}
                 onChange={(e) => handleChange("dispatcher", e.target.value)}
                 placeholder="Initials..."
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
               />
             </div>
             {isUpdate && (
               <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                 Update Reason
               </label>
               <input
@@ -386,7 +407,7 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
                 value={form.updateReason}
                 onChange={(e) => handleChange("updateReason", e.target.value)}
                 placeholder="e.g. AC swap, fuel change..."
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
                 />
               </div>
             )}
@@ -409,7 +430,7 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                   To Email(s) <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -417,11 +438,11 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
                   value={stationEmail}
                   onChange={(e) => setStationEmail(e.target.value)}
                   placeholder="fuel@handler.com, ops@handler.com"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
                   CC Email(s)
                 </label>
                 <input
@@ -429,13 +450,13 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
                   value={stationCc}
                   onChange={(e) => setStationCc(e.target.value)}
                   placeholder="optional cc addresses..."
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
                 />
               </div>
               <button
                 onClick={handleSaveStation}
                 disabled={savingStation || !stationEmail.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 av-btn-success rounded-lg text-sm disabled:opacity-50"
               >
                 <Plus size={14} />
                 {savingStation ? "Saving..." : `Save Station ${form.deptIcao}`}
@@ -446,46 +467,50 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
 
         {/* Email Preview */}
         {showPreview && (
-          <div className="mx-6 mb-4 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          <div className="mx-6 mb-4 av-panel p-4">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
               Email Preview
             </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Subject:</p>
-            <p className="text-sm font-mono text-gray-900 dark:text-white mb-3">{emailSubject}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Body:</p>
-            <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+            <p className="text-xs text-slate-500 dark:text-slate-500 mb-1">Subject:</p>
+            <p className="text-sm font-mono text-slate-900 dark:text-white mb-3">{emailSubject}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mb-1">Body:</p>
+            <pre className="text-xs font-mono text-slate-700 dark:text-slate-300 whitespace-pre-wrap bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg">
               {emailBody}
             </pre>
           </div>
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700/60 bg-gray-50 dark:bg-gray-950/50 rounded-b-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-950/50 rounded-b-2xl">
           <button
             onClick={() => setShowPreview(!showPreview)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
             <Eye size={16} />
-            {showPreview ? "Hide Preview" : "Preview Email"}
+            {showPreview ? "Hide Preview" : "Preview"}
           </button>
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSend}
               disabled={sending || !form.dispatcher}
-              className="flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-600/20"
+              className="flex items-center gap-2 px-5 py-2 av-btn-primary rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileText size={16} />
               {sending ? "Processing..." : isUpdate ? "Generate Update" : "Generate Order"}
             </button>
           </div>
         </div>
-      </div>
-    </div>
+              </DialogPanel>
+            </TransitionChild>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
   );
 }
