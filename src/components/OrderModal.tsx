@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Send, AlertTriangle, Eye, Plus } from "lucide-react";
+import { X, Send, AlertTriangle, Eye, Plus, FileText } from "lucide-react";
 import { useToast } from "./Toast";
 import { formatEmailSubject, formatEmailBody, generateMailtoUrl } from "@/lib/email";
 
@@ -168,7 +168,7 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
         if (data.mailtoUrl) {
           window.open(data.mailtoUrl, "_self");
         }
-        addToast("success", `Order ${isUpdate ? "updated" : "created"} — email client opened`);
+        addToast("success", `Order generated — opening email client`);
         onSuccess();
       } else if (data.error === "DUPLICATE_WARNING") {
         addToast("warning", data.message);
@@ -242,7 +242,7 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700/60">
           <div>
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-              {isUpdate ? "Update Fuel Order" : "New Fuel Order"}
+              {isUpdate ? "Update Fuel Order" : "Generate Fuel Order"}
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-0.5 font-mono">
               {form.flightNumber} &bull; {form.deptIcao} &bull; {form.acRegistration}
@@ -480,8 +480,8 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
               disabled={sending || !form.dispatcher}
               className="flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-600/20"
             >
-              <Send size={16} />
-              {sending ? "Processing..." : isUpdate ? "Send Update" : "Send Order"}
+              <FileText size={16} />
+              {sending ? "Processing..." : isUpdate ? "Generate Update" : "Generate Order"}
             </button>
           </div>
         </div>
