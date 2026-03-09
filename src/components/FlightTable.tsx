@@ -38,6 +38,26 @@ interface Flight {
   acRegChanged: boolean;
 }
 
+type TimeWindow = "24h" | "48h" | "72h" | "custom";
+
+function getDateRange(window: TimeWindow, customStart?: string, customEnd?: string): { startDate: string; endDate: string } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  if (window === "custom" && customStart && customEnd) {
+    return { startDate: customStart, endDate: customEnd };
+  }
+  
+  const hours = window === "24h" ? 24 : window === "48h" ? 48 : 72;
+  const endTime = new Date(now.getTime() + hours * 60 * 60 * 1000);
+  
+  // Start from beginning of today, end date is the day containing endTime
+  const startDate = today.toISOString().slice(0, 10);
+  const endDate = endTime.toISOString().slice(0, 10);
+  
+  return { startDate, endDate };
+}
+
 export function FlightTable() {
   const [flights, setFlights] = useState<Flight[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,14 +69,31 @@ export function FlightTable() {
     }
     return true;
   });
-  const [filterDate, setFilterDate] = useState(() => {
+  
+  // Time window state
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("fb_filterDate");
-      // Default to today if no stored value
-      return stored || new Date().toISOString().slice(0, 10);
+      return (localStorage.getItem("fb_timeWindow") as TimeWindow) || "48h";
+    }
+    return "48h";
+  });
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("fb_customStart") || new Date().toISOString().slice(0, 10);
     }
     return new Date().toISOString().slice(0, 10);
   });
+  const [customEndDate, setCustomEndDate] = useState(() => {
+    if (typeof window !== "undefined") {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return localStorage.getItem("fb_customEnd") || tomorrow.toISOString().slice(0, 10);
+    }
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().slice(0, 10);
+  });
+  
   const [filterFlightNo, setFilterFlightNo] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("fb_filterFlightNo") || "";
     return "";
@@ -98,29 +135,48 @@ export function FlightTable() {
   // Persist filter state to localStorage
   useEffect(() => {
     localStorage.setItem("fb_showFilters", String(showFilters));
-    localStorage.setItem("fb_filterDate", filterDate);
+    localStorage.setItem("fb_timeWindow", timeWindow);
+    localStorage.setItem("fb_customStart", customStartDate);
+    localStorage.setItem("fb_customEnd", customEndDate);
     localStorage.setItem("fb_filterFlightNo", filterFlightNo);
     localStorage.setItem("fb_filterReg", filterReg);
     localStorage.setItem("fb_sortField2", sortField);
     localStorage.setItem("fb_sortDir2", sortDir);
     localStorage.setItem("fb_timeFormat", boardTimeFormat);
-  }, [showFilters, filterDate, filterFlightNo, filterReg, sortField, sortDir, boardTimeFormat]);
+  }, [showFilters, timeWindow, customStartDate, customEndDate, filterFlightNo, filterReg, sortField, sortDir, boardTimeFormat]);
 
   const fetchFlights = useCallback(async () => {
     setLoading(true);
     try {
+      const { startDate, endDate } = getDateRange(timeWindow, customStartDate, customEndDate);
       const params = new URLSearchParams();
-      if (filterDate) params.set("date", filterDate);
+      params.set("startDate", startDate);
+      params.set("endDate", endDate);
       const res = await fetch(`/api/flights?${params.toString()}`);
       const data = await res.json();
-      if (data.success) setFlights(data.data);
-      else addToast("error", data.error || "Failed to fetch flights");
+      if (data.success) {
+        // Client-side time filtering for preset windows (filter by actual hours, not just dates)
+        if (timeWindow !== "custom") {
+          const now = new Date();
+          const hours = timeWindow === "24h" ? 24 : timeWindow === "48h" ? 48 : 72;
+          const cutoffTime = new Date(now.getTime() + hours * 60 * 60 * 1000);
+          const filtered = data.data.filter((f: Flight) => {
+            const deptTime = new Date(f.deptTime);
+            return deptTime >= now && deptTime <= cutoffTime;
+          });
+          setFlights(filtered);
+        } else {
+          setFlights(data.data);
+        }
+      } else {
+        addToast("error", data.error || "Failed to fetch flights");
+      }
     } catch {
       addToast("error", "Failed to connect to server");
     } finally {
       setLoading(false);
     }
-  }, [addToast, filterDate]);
+  }, [addToast, timeWindow, customStartDate, customEndDate]);
 
   const syncFlights = async () => {
     setRefreshing(true);
@@ -210,10 +266,14 @@ export function FlightTable() {
     }
   };
 
-  const activeFilterCount = [filterFlightNo, filterReg].filter(Boolean).length;
+  const activeFilterCount = [filterFlightNo, filterReg].filter(Boolean).length + (timeWindow === "custom" ? 1 : 0);
 
   const clearFilters = () => {
-    setFilterDate(new Date().toISOString().slice(0, 10));
+    setTimeWindow("48h");
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setCustomStartDate(new Date().toISOString().slice(0, 10));
+    setCustomEndDate(tomorrow.toISOString().slice(0, 10));
     setFilterFlightNo("");
     setFilterReg("");
   };
@@ -272,6 +332,14 @@ export function FlightTable() {
     );
   };
 
+  // Get display text for current time window
+  const getTimeWindowLabel = () => {
+    if (timeWindow === "custom") {
+      return `${customStartDate} to ${customEndDate}`;
+    }
+    return `Next ${timeWindow}`;
+  };
+
   return (
     <div>
       {/* Header */}
@@ -281,7 +349,9 @@ export function FlightTable() {
             Flight Board
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-500 mt-1">
-            <span className="font-mono">{filtered.length}</span> of <span className="font-mono">{flights.length}</span> flights
+            <span className="font-mono">{filtered.length}</span> flights
+            <span className="mx-1.5">·</span>
+            <span className="text-sky-600 dark:text-sky-400">{getTimeWindowLabel()}</span>
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -354,19 +424,61 @@ export function FlightTable() {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-500 mb-1 uppercase tracking-wider">
-                <Calendar size={11} className="inline mr-1" />
-                Date
-              </label>
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
-              />
+          
+          {/* Time Window Presets */}
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-500 mb-2 uppercase tracking-wider">
+              <Calendar size={11} className="inline mr-1" />
+              Time Window
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {(["24h", "48h", "72h", "custom"] as const).map((w) => (
+                <button
+                  key={w}
+                  onClick={() => setTimeWindow(w)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    timeWindow === w
+                      ? "bg-sky-600 text-white shadow-md"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {w === "24h" ? "Next 24h" : w === "48h" ? "Next 48h" : w === "72h" ? "Next 72h" : "Custom Range"}
+                </button>
+              ))}
             </div>
+          </div>
+          
+          {/* Custom Date Range (only show when custom is selected) */}
+          {timeWindow === "custom" && (
+            <div className="mb-4 p-3 bg-sky-50 dark:bg-sky-900/20 rounded-lg border border-sky-200 dark:border-sky-800">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-500 mb-1 uppercase tracking-wider">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-500 mb-1 uppercase tracking-wider">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-500 dark:text-slate-500 mb-1 uppercase tracking-wider">
                 Flight #

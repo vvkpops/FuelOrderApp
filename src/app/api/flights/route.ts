@@ -35,42 +35,83 @@ export async function GET(req: NextRequest) {
     const deptIcao = searchParams.get("deptIcao");
     const flightNumber = searchParams.get("flightNumber");
     const acRegistration = searchParams.get("acRegistration");
-    // Default to today's date if not specified
-    const date = searchParams.get("date") || new Date().toISOString().slice(0, 10);
-
-    // Fetch ALL flights for the date from external API (paginated)
-    const allFlights: FDAFlight[] = [];
-    let page = 1;
-    let totalPages = 1;
-
-    while (page <= totalPages) {
-      const url = new URL(`${FLIGHT_API_URL}/api/v1/flights`);
-      url.searchParams.set("page", String(page));
-      url.searchParams.set("limit", "200");
-      // Always pass date to get relevant flights
-      url.searchParams.set("date", date);
-
-      const response = await fetch(url.toString(), {
-        headers: { "x-api-key": FLIGHT_API_KEY },
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        const errBody = await response.text();
-        console.error(`Flight Data API error (page ${page}):`, response.status, errBody);
-        return NextResponse.json(
-          { success: false, error: `Flight Data API error: ${response.status}` },
-          { status: 502 }
-        );
+    
+    // Support date range OR single date for backwards compatibility
+    // startDate/endDate take precedence over date param
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+    const singleDate = searchParams.get("date");
+    
+    // Determine date range
+    let datesToFetch: string[] = [];
+    if (startDateParam && endDateParam) {
+      // Date range mode - fetch all days in range
+      const start = new Date(startDateParam);
+      const end = new Date(endDateParam);
+      const current = new Date(start);
+      while (current <= end) {
+        datesToFetch.push(current.toISOString().slice(0, 10));
+        current.setDate(current.getDate() + 1);
       }
-
-      const json = await response.json();
-      const flights: FDAFlight[] = json.data || [];
-      allFlights.push(...flights);
-
-      totalPages = json.pagination?.pages || 1;
-      page++;
+    } else if (singleDate) {
+      // Single date mode (backwards compatible)
+      datesToFetch = [singleDate];
+    } else {
+      // Default to today
+      datesToFetch = [new Date().toISOString().slice(0, 10)];
     }
+
+    // Helper to fetch one day of flights
+    const fetchFlightsForDate = async (date: string): Promise<FDAFlight[]> => {
+      const flights: FDAFlight[] = [];
+      let page = 1;
+      let totalPages = 1;
+
+      while (page <= totalPages) {
+        const url = new URL(`${FLIGHT_API_URL}/api/v1/flights`);
+        url.searchParams.set("page", String(page));
+        url.searchParams.set("limit", "200");
+        url.searchParams.set("date", date);
+
+        const response = await fetch(url.toString(), {
+          headers: { "x-api-key": FLIGHT_API_KEY },
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          const errBody = await response.text();
+          console.error(`Flight Data API error (date ${date}, page ${page}):`, response.status, errBody);
+          throw new Error(`Flight Data API error: ${response.status}`);
+        }
+
+        const json = await response.json();
+        flights.push(...(json.data || []));
+        totalPages = json.pagination?.pages || 1;
+        page++;
+      }
+      return flights;
+    };
+
+    // Fetch all dates in parallel
+    let allFlights: FDAFlight[] = [];
+    try {
+      const results = await Promise.all(datesToFetch.map(fetchFlightsForDate));
+      allFlights = results.flat();
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : "Unknown error";
+      return NextResponse.json(
+        { success: false, error: errMsg },
+        { status: 502 }
+      );
+    }
+
+    // Deduplicate by flight ID (API may return same flight on adjacent days)
+    const seenIds = new Set<number>();
+    allFlights = allFlights.filter((f) => {
+      if (seenIds.has(f.id)) return false;
+      seenIds.add(f.id);
+      return true;
+    });
 
     // Apply client-side filters
     let filteredFlights = allFlights;
