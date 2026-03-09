@@ -102,33 +102,91 @@ export async function GET(req: NextRequest) {
       flightHash(f.callsign, f.departureicao, f.departuretime)
     );
 
-    // Query orders by flight_hash (with fallback if column doesn't exist)
-    let orderMap = new Map<string, { hasOrder: boolean; latestStatus: string | null; fuelLoad: number | null; dispatcher: string | null }>();
+    // Query orders - handle both flight_hash (new) and flight_number+dept_icao+date (legacy)
+    const orderMap = new Map<string, { hasOrder: boolean; latestStatus: string | null; fuelLoad: number | null; dispatcher: string | null }>();
     
     try {
-      const { rows: orders } = await pool.query(
-        `SELECT flight_hash, id, status, sent_at, fuel_load, dispatcher
+      // First try to get orders by flight_hash
+      const { rows: hashOrders } = await pool.query(
+        `SELECT flight_hash, flight_number, dept_icao, dept_time, id, status, sent_at, fuel_load, dispatcher
          FROM fuel_orders 
-         WHERE flight_hash = ANY($1) AND status != 'CANCELLED'
+         WHERE (flight_hash = ANY($1) OR flight_hash IS NULL) AND status != 'CANCELLED'
          ORDER BY sent_at DESC`,
         [flightHashes]
       );
 
-      // Build a map of flight_hash -> order info
-      for (const o of orders) {
-        const hash = o.flight_hash;
-        if (hash && !orderMap.has(hash)) {
-          orderMap.set(hash, {
+      // Build lookup maps for matching
+      for (const o of hashOrders) {
+        // Match by flight_hash if available
+        if (o.flight_hash && flightHashes.includes(o.flight_hash) && !orderMap.has(o.flight_hash)) {
+          orderMap.set(o.flight_hash, {
             hasOrder: true,
             latestStatus: o.status,
             fuelLoad: o.fuel_load,
             dispatcher: o.dispatcher,
           });
+        } else if (!o.flight_hash) {
+          // Legacy order without flight_hash - match by flight details
+          const matchingFlight = filteredFlights.find((f) => {
+            const flightNum = f.callsign.toUpperCase();
+            const orderFlightNum = o.flight_number?.toUpperCase();
+            const flightDept = f.departureicao.toUpperCase();
+            const orderDept = o.dept_icao?.toUpperCase();
+            const flightDate = new Date(f.departuretime).toISOString().slice(0, 10);
+            const orderDate = o.dept_time ? new Date(o.dept_time).toISOString().slice(0, 10) : null;
+            return flightNum === orderFlightNum && flightDept === orderDept && flightDate === orderDate;
+          });
+          
+          if (matchingFlight) {
+            const hash = flightHash(matchingFlight.callsign, matchingFlight.departureicao, matchingFlight.departuretime);
+            if (!orderMap.has(hash)) {
+              orderMap.set(hash, {
+                hasOrder: true,
+                latestStatus: o.status,
+                fuelLoad: o.fuel_load,
+                dispatcher: o.dispatcher,
+              });
+            }
+          }
         }
       }
     } catch (e) {
-      // flight_hash column might not exist yet - continue without order info
-      console.error("Order lookup failed:", e);
+      // flight_hash column might not exist - try legacy lookup
+      console.error("Order hash lookup failed, trying legacy:", e);
+      try {
+        const { rows: legacyOrders } = await pool.query(
+          `SELECT flight_number, dept_icao, dept_time, id, status, sent_at, fuel_load, dispatcher
+           FROM fuel_orders 
+           WHERE status != 'CANCELLED'
+           ORDER BY sent_at DESC`
+        );
+        
+        for (const o of legacyOrders) {
+          const matchingFlight = filteredFlights.find((f) => {
+            const flightNum = f.callsign.toUpperCase();
+            const orderFlightNum = o.flight_number?.toUpperCase();
+            const flightDept = f.departureicao.toUpperCase();
+            const orderDept = o.dept_icao?.toUpperCase();
+            const flightDate = new Date(f.departuretime).toISOString().slice(0, 10);
+            const orderDate = o.dept_time ? new Date(o.dept_time).toISOString().slice(0, 10) : null;
+            return flightNum === orderFlightNum && flightDept === orderDept && flightDate === orderDate;
+          });
+          
+          if (matchingFlight) {
+            const hash = flightHash(matchingFlight.callsign, matchingFlight.departureicao, matchingFlight.departuretime);
+            if (!orderMap.has(hash)) {
+              orderMap.set(hash, {
+                hasOrder: true,
+                latestStatus: o.status,
+                fuelLoad: o.fuel_load,
+                dispatcher: o.dispatcher,
+              });
+            }
+          }
+        }
+      } catch (e2) {
+        console.error("Legacy order lookup also failed:", e2);
+      }
     }
 
     // Sort by departure time
