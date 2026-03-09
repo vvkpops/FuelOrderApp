@@ -8,6 +8,9 @@ import {
   Edit3,
   X,
   RefreshCw,
+  Mail,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { useToast } from "./Toast";
 
@@ -27,6 +30,8 @@ export function StationSettings() {
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [autoEmailEnabled, setAutoEmailEnabled] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [form, setForm] = useState({
     icaoCode: "",
     name: "",
@@ -35,6 +40,41 @@ export function StationSettings() {
     ccEmails: "",
   });
   const { addToast } = useToast();
+
+  // Load settings on mount
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          setAutoEmailEnabled(data.data.autoEmailEnabled === "true");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleAutoEmail = async () => {
+    const newValue = !autoEmailEnabled;
+    setSavingSettings(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoEmailEnabled: String(newValue) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAutoEmailEnabled(newValue);
+        addToast("success", `Auto-email ${newValue ? "enabled" : "disabled"}`);
+      } else {
+        addToast("error", "Failed to update setting");
+      }
+    } catch {
+      addToast("error", "Failed to update setting");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   // Auto-lookup airport data when ICAO code changes
   const lookupAirport = useCallback(async (icao: string) => {
@@ -173,6 +213,33 @@ export function StationSettings() {
           Configure station emails and application defaults
         </p>
 
+        {/* Auto-Email Toggle */}
+        <div className="bg-white dark:bg-gray-900/80 rounded-xl shadow-sm dark:shadow-2xl dark:shadow-black/30 border border-gray-200 dark:border-gray-800 p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
+                <Mail size={20} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-white">Auto-Email Orders</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Enable the &quot;Order&quot; button for automatic email sending
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={toggleAutoEmail}
+              disabled={savingSettings}
+              className="p-1 transition-colors"
+            >
+              {autoEmailEnabled ? (
+                <ToggleRight size={40} className="text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <ToggleLeft size={40} className="text-gray-400 dark:text-gray-600" />
+              )}
+            </button>
+          </div>
+        </div>
 
       </div>
 
