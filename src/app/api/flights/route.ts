@@ -32,19 +32,18 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const limit = Number(searchParams.get("limit")) || 100;
     const deptIcao = searchParams.get("deptIcao");
     const flightNumber = searchParams.get("flightNumber");
     const acRegistration = searchParams.get("acRegistration");
     // Default to today's date if not specified
     const date = searchParams.get("date") || new Date().toISOString().slice(0, 10);
 
-    // Fetch flights from external API (paginated)
+    // Fetch ALL flights for the date from external API (paginated)
     const allFlights: FDAFlight[] = [];
     let page = 1;
     let totalPages = 1;
 
-    while (page <= totalPages && allFlights.length < limit) {
+    while (page <= totalPages) {
       const url = new URL(`${FLIGHT_API_URL}/api/v1/flights`);
       url.searchParams.set("page", String(page));
       url.searchParams.set("limit", "200");
@@ -93,9 +92,6 @@ export async function GET(req: NextRequest) {
         f.acregistration.toLowerCase().includes(search)
       );
     }
-
-    // Limit results
-    filteredFlights = filteredFlights.slice(0, limit);
 
     // Generate flight hashes for each flight
     const flightHashes = filteredFlights.map((f) =>
