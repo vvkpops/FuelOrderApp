@@ -14,6 +14,8 @@ import {
   Calendar,
   Globe,
   Clock,
+  FileText,
+  Mail,
 } from "lucide-react";
 import { useToast } from "./Toast";
 import { OrderModal } from "./OrderModal";
@@ -78,7 +80,20 @@ export function FlightTable() {
     return "local";
   });
   const [tzCache, setTzCache] = useState<Record<string, string | null>>({});
+  const [autoEmailEnabled, setAutoEmailEnabled] = useState(false);
   const { addToast } = useToast();
+
+  // Load settings (auto-email enabled)
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.data.autoEmailEnabled) {
+          setAutoEmailEnabled(data.data.autoEmailEnabled === "true");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Persist filter state to localStorage
   useEffect(() => {
@@ -235,12 +250,10 @@ export function FlightTable() {
     // Show A/C REG changed warning if registration differs from order
     if (flight.acRegChanged) {
       return (
-        <div className="flex flex-col gap-1">
-          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-400 dark:border dark:border-orange-500/30 flex items-center gap-1">
-            <AlertTriangle size={12} />
-            A/C REG changed
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-400 dark:border dark:border-orange-500/30">
+            REG: {flight.orderAcReg} → {flight.acRegistration}
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">Was: {flight.orderAcReg}</span>
         </div>
       );
     }
@@ -478,36 +491,62 @@ export function FlightTable() {
                       {statusBadge(flight)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => {
-                          setSelectedFlight(flight);
-                          setShowOrderModal(true);
-                        }}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          flight.acRegChanged
-                            ? "bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:hover:bg-orange-500/20 dark:border dark:border-orange-500/30"
-                            : flight.hasOrder
-                            ? "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20 dark:border dark:border-amber-500/30"
-                            : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 dark:border dark:border-emerald-500/30"
-                        }`}
-                      >
-                        {flight.acRegChanged ? (
-                          <>
-                            <AlertTriangle size={14} />
-                            Verify order
-                          </>
-                        ) : flight.hasOrder ? (
-                          <>
-                            <Edit3 size={14} />
-                            Update
-                          </>
-                        ) : (
-                          <>
-                            <Send size={14} />
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Generate button - opens modal */}
+                        <button
+                          onClick={() => {
+                            setSelectedFlight(flight);
+                            setShowOrderModal(true);
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            flight.acRegChanged
+                              ? "bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:hover:bg-orange-500/20 dark:border dark:border-orange-500/30"
+                              : flight.hasOrder
+                              ? "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20 dark:border dark:border-amber-500/30"
+                              : "bg-gray-50 text-gray-700 hover:bg-gray-100 dark:bg-gray-700/50 dark:text-gray-300 dark:hover:bg-gray-700 dark:border dark:border-gray-600"
+                          }`}
+                        >
+                          {flight.acRegChanged ? (
+                            <>
+                              <AlertTriangle size={14} />
+                              Verify
+                            </>
+                          ) : flight.hasOrder ? (
+                            <>
+                              <Edit3 size={14} />
+                              Update
+                            </>
+                          ) : (
+                            <>
+                              <FileText size={14} />
+                              Generate
+                            </>
+                          )}
+                        </button>
+                        {/* Order button - auto-email (enabled via settings) */}
+                        {!flight.hasOrder && (
+                          <button
+                            onClick={() => {
+                              if (!autoEmailEnabled) {
+                                addToast("info", "Auto-email is disabled. Enable it in Settings.");
+                                return;
+                              }
+                              // TODO: Implement auto-email order
+                              addToast("info", "Auto-email order coming soon");
+                            }}
+                            disabled={!autoEmailEnabled}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                              autoEmailEnabled
+                                ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 dark:border dark:border-emerald-500/30"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600 dark:border dark:border-gray-700"
+                            }`}
+                            title={autoEmailEnabled ? "Send order via email" : "Enable auto-email in Settings"}
+                          >
+                            <Mail size={14} />
                             Order
-                          </>
+                          </button>
                         )}
-                      </button>
+                      </div>
                     </td>
                   </tr>
                 ))
