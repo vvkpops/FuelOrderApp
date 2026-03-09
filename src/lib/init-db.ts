@@ -77,49 +77,8 @@ CREATE TABLE IF NOT EXISTS settings (
 // Migrations for existing databases
 const migrations = `
 -- Add flight_hash column if it doesn't exist (for real-time flight sync)
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'fuel_orders' AND column_name = 'flight_hash'
-  ) THEN
-    ALTER TABLE fuel_orders ADD COLUMN flight_hash TEXT;
-    CREATE INDEX IF NOT EXISTS idx_fuel_orders_flight_hash ON fuel_orders(flight_hash);
-  END IF;
-END $$;
-
--- Drop old columns if they exist (must drop constraints first)
-DO $$ 
-DECLARE
-  constraint_name TEXT;
-BEGIN
-  -- Drop flight_id foreign key constraint if exists
-  SELECT tc.constraint_name INTO constraint_name
-  FROM information_schema.table_constraints tc
-  JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-  WHERE tc.table_name = 'fuel_orders' 
-    AND tc.constraint_type = 'FOREIGN KEY'
-    AND kcu.column_name = 'flight_id';
-  
-  IF constraint_name IS NOT NULL THEN
-    EXECUTE 'ALTER TABLE fuel_orders DROP CONSTRAINT ' || constraint_name;
-  END IF;
-
-  -- Now drop columns
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'fuel_orders' AND column_name = 'flight_id'
-  ) THEN
-    ALTER TABLE fuel_orders DROP COLUMN flight_id;
-  END IF;
-  
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'fuel_orders' AND column_name = 'external_flight_id'
-  ) THEN
-    ALTER TABLE fuel_orders DROP COLUMN external_flight_id;
-  END IF;
-END $$;
+ALTER TABLE fuel_orders ADD COLUMN IF NOT EXISTS flight_hash TEXT;
+CREATE INDEX IF NOT EXISTS idx_fuel_orders_flight_hash ON fuel_orders(flight_hash);
 `;
 
 let initialized = false;
