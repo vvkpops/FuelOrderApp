@@ -62,11 +62,11 @@ export function FlightTable() {
     return "";
   });
   const [sortField, setSortField] = useState<keyof Flight>(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("fb_sortField") as keyof Flight) || "deptTime";
+    if (typeof window !== "undefined") return (localStorage.getItem("fb_sortField2") as keyof Flight) || "deptTime";
     return "deptTime";
   });
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("fb_sortDir") as "asc" | "desc") || "desc";
+    if (typeof window !== "undefined") return (localStorage.getItem("fb_sortDir2") as "asc" | "desc") || "desc";
     return "desc";
   });
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
@@ -84,8 +84,8 @@ export function FlightTable() {
     localStorage.setItem("fb_filterDate", filterDate);
     localStorage.setItem("fb_filterFlightNo", filterFlightNo);
     localStorage.setItem("fb_filterReg", filterReg);
-    localStorage.setItem("fb_sortField", sortField);
-    localStorage.setItem("fb_sortDir", sortDir);
+    localStorage.setItem("fb_sortField2", sortField);
+    localStorage.setItem("fb_sortDir2", sortDir);
     localStorage.setItem("fb_timeFormat", boardTimeFormat);
   }, [showFilters, filterDate, filterFlightNo, filterReg, sortField, sortDir, boardTimeFormat]);
 
