@@ -46,8 +46,12 @@ export function FlightTable() {
     return true;
   });
   const [filterDate, setFilterDate] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("fb_filterDate") || "";
-    return "";
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("fb_filterDate");
+      // Default to today if no stored value
+      return stored || new Date().toISOString().slice(0, 10);
+    }
+    return new Date().toISOString().slice(0, 10);
   });
   const [filterFlightNo, setFilterFlightNo] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("fb_filterFlightNo") || "";
@@ -88,7 +92,9 @@ export function FlightTable() {
   const fetchFlights = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/flights");
+      const params = new URLSearchParams();
+      if (filterDate) params.set("date", filterDate);
+      const res = await fetch(`/api/flights?${params.toString()}`);
       const data = await res.json();
       if (data.success) setFlights(data.data);
       else addToast("error", data.error || "Failed to fetch flights");
@@ -97,7 +103,7 @@ export function FlightTable() {
     } finally {
       setLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, filterDate]);
 
   const syncFlights = async () => {
     setRefreshing(true);
@@ -187,20 +193,17 @@ export function FlightTable() {
     }
   };
 
-  const activeFilterCount = [filterDate, filterFlightNo, filterReg].filter(Boolean).length;
+  const activeFilterCount = [filterFlightNo, filterReg].filter(Boolean).length;
 
   const clearFilters = () => {
-    setFilterDate("");
+    setFilterDate(new Date().toISOString().slice(0, 10));
     setFilterFlightNo("");
     setFilterReg("");
   };
 
   const filtered = flights
     .filter((f) => {
-      if (filterDate) {
-        const flightDate = new Date(f.deptTime).toISOString().slice(0, 10);
-        if (flightDate !== filterDate) return false;
-      }
+      // Date filtering is done server-side via API
       if (filterFlightNo) {
         const terms = filterFlightNo.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
         if (terms.length > 0 && !terms.some((t) => f.flightNumber.toLowerCase().includes(t))) return false;
