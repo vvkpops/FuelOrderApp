@@ -1,7 +1,8 @@
 // Shared types used across client and server
 
 export interface FlightData {
-  id: string;
+  id: string; // Unique flight hash
+  flightHash: string;
   flightNumber: string;
   acRegistration: string;
   acType: string;
@@ -13,12 +14,13 @@ export interface FlightData {
   eta: string | null;
   fuelLoad: number | null;
   dispatcher: string | null;
-  ingestedAt: string;
+  hasOrder: boolean;
+  latestOrderStatus: string | null;
 }
 
 export interface FuelOrderData {
   id: string;
-  flightId: string;
+  flightHash: string;
   flightNumber: string;
   acRegistration: string;
   acType: string;

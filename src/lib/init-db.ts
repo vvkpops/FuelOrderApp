@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_flights_arrival_icao ON flights(arrival_icao);
 
 CREATE TABLE IF NOT EXISTS fuel_orders (
   id TEXT PRIMARY KEY,
-  flight_id TEXT REFERENCES flights(id),
+  flight_hash TEXT,
   flight_number TEXT NOT NULL,
   ac_registration TEXT NOT NULL,
   ac_type TEXT NOT NULL,
@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS fuel_orders (
 CREATE INDEX IF NOT EXISTS idx_fuel_orders_status ON fuel_orders(status);
 CREATE INDEX IF NOT EXISTS idx_fuel_orders_dept_icao ON fuel_orders(dept_icao);
 CREATE INDEX IF NOT EXISTS idx_fuel_orders_flight_number ON fuel_orders(flight_number);
+CREATE INDEX IF NOT EXISTS idx_fuel_orders_flight_hash ON fuel_orders(flight_hash);
 
 CREATE TABLE IF NOT EXISTS stations (
   id TEXT PRIMARY KEY,
@@ -73,10 +74,43 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `;
 
+// Migrations for existing databases
+const migrations = `
+-- Add flight_hash column if it doesn't exist (for real-time flight sync)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'fuel_orders' AND column_name = 'flight_hash'
+  ) THEN
+    ALTER TABLE fuel_orders ADD COLUMN flight_hash TEXT;
+    CREATE INDEX IF NOT EXISTS idx_fuel_orders_flight_hash ON fuel_orders(flight_hash);
+  END IF;
+END $$;
+
+-- Drop old columns if they exist
+DO $$ 
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'fuel_orders' AND column_name = 'flight_id'
+  ) THEN
+    ALTER TABLE fuel_orders DROP COLUMN flight_id;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'fuel_orders' AND column_name = 'external_flight_id'
+  ) THEN
+    ALTER TABLE fuel_orders DROP COLUMN external_flight_id;
+  END IF;
+END $$;
+`;
+
 let initialized = false;
 
 export async function ensureDb() {
   if (initialized) return;
   await pool.query(schema);
+  await pool.query(migrations);
   initialized = true;
 }

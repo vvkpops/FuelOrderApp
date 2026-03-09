@@ -30,7 +30,6 @@ interface Flight {
   eta: string | null;
   fuelLoad: number | null;
   dispatcher: string | null;
-  ingestedAt: string;
   hasOrder: boolean;
   latestOrderStatus: string | null;
 }
@@ -38,7 +37,7 @@ interface Flight {
 export function FlightTable() {
   const [flights, setFlights] = useState<Flight[]>([]);
   const [loading, setLoading] = useState(false);
-  const [ingesting, setIngesting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("fb_showFilters");
@@ -101,24 +100,14 @@ export function FlightTable() {
   }, [addToast]);
 
   const syncFlights = async () => {
-    setIngesting(true);
+    setRefreshing(true);
     try {
-      const res = await fetch("/api/flights/ingest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (data.success) {
-        addToast("success", data.message);
-        fetchFlights();
-      } else {
-        addToast("error", data.error || "Sync failed");
-      }
+      await fetchFlights();
+      addToast("success", "Flights refreshed");
     } catch {
-      addToast("error", "Failed to sync flight data");
+      addToast("error", "Failed to refresh flights");
     } finally {
-      setIngesting(false);
+      setRefreshing(false);
     }
   };
 
@@ -306,11 +295,11 @@ export function FlightTable() {
           </div>
           <button
             onClick={syncFlights}
-            disabled={ingesting}
+            disabled={refreshing}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200 text-sm font-medium disabled:opacity-50 shadow-lg shadow-emerald-600/20"
           >
-            <RefreshCw size={16} className={ingesting ? "animate-spin" : ""} />
-            {ingesting ? "Syncing..." : "Sync Flights"}
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+            {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
       </div>

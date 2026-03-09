@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { ensureDb } from "@/lib/init-db";
-import { newId } from "@/lib/id";
+import { newId, flightHash } from "@/lib/id";
 import { formatEmailSubject, formatEmailBody, generateMailtoUrl } from "@/lib/email";
 
 // GET /api/orders — list all orders
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       success: true,
       data: rows.map((o) => ({
         id: o.id,
-        flightId: o.flight_id,
+        flightHash: o.flight_hash,
         flightNumber: o.flight_number,
         acRegistration: o.ac_registration,
         acType: o.ac_type,
@@ -100,11 +100,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for duplicate — same flight record, not cancelled
-    if (!isUpdate && flightId) {
+    // Generate unique flight hash based on flight number, departure airport, and date
+    const hash = flightHash(flightNumber, deptIcao, deptTime);
+
+    // Check for duplicate — same flight hash, not cancelled
+    if (!isUpdate) {
       const { rows: dupes } = await pool.query(
-        "SELECT * FROM fuel_orders WHERE flight_id = $1 AND status != 'CANCELLED' LIMIT 1",
-        [flightId]
+        "SELECT * FROM fuel_orders WHERE flight_hash = $1 AND status != 'CANCELLED' LIMIT 1",
+        [hash]
       );
 
       if (dupes.length > 0) {
@@ -188,13 +191,13 @@ export async function POST(req: NextRequest) {
 
     await pool.query(
       `INSERT INTO fuel_orders
-        (id, flight_id, flight_number, ac_registration, ac_type, dept_icao, dept_time,
+        (id, flight_hash, flight_number, ac_registration, ac_type, dept_icao, dept_time,
          fuel_load, dispatcher, status, sent_at, sent_to, cc_to, email_subject, email_body,
          is_update, original_order_id, update_reason, created_at, updated_at)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
       [
         orderId,
-        flightId || null,
+        hash,
         flightNumber,
         acRegistration,
         acType || "Unknown",
@@ -216,33 +219,14 @@ export async function POST(req: NextRequest) {
       ]
     );
 
-    // Update the flight record with fuel load and dispatcher
-    if (flightId) {
-      const updates: string[] = [];
-      const uParams: unknown[] = [];
-      let uIdx = 1;
-      if (parsedFuelLoad !== null) {
-        updates.push(`fuel_load = $${uIdx++}`);
-        uParams.push(parsedFuelLoad);
-      }
-      if (dispatcher) {
-        updates.push(`dispatcher = $${uIdx++}`);
-        uParams.push(dispatcher);
-      }
-      if (updates.length > 0) {
-        uParams.push(flightId);
-        await pool.query(
-          `UPDATE flights SET ${updates.join(", ")} WHERE id = $${uIdx}`,
-          uParams
-        );
-      }
-    }
+    // No longer updating flights table - data is fetched real-time from API
+    // Fuel load and dispatcher are stored with the order and retrieved when listing flights
 
     return NextResponse.json({
       success: true,
       data: {
         id: orderId,
-        flightId: flightId || null,
+        flightHash: hash,
         flightNumber,
         acRegistration,
         acType: acType || "Unknown",

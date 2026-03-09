@@ -42,7 +42,7 @@ export async function GET(
       success: true,
       data: {
         id: o.id,
-        flightId: o.flight_id,
+        flightHash: o.flight_hash,
         flightNumber: o.flight_number,
         acRegistration: o.ac_registration,
         acType: o.ac_type,
