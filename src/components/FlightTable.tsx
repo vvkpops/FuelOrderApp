@@ -475,13 +475,10 @@ export function FlightTable() {
                       {formatDeptTime(flight.deptTime, flight.deptIcao)}
                     </td>
                     <td className="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300">
-                      {flight.fuelLoad ? (
+                      {flight.fuelLoad != null ? (
                         <span className="dark:text-emerald-400 font-medium">{flight.fuelLoad.toLocaleString()} LBS</span>
                       ) : (
-                        <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                          <AlertTriangle size={14} />
-                          N/A
-                        </span>
+                        <span className="text-gray-400 dark:text-gray-600">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-400">

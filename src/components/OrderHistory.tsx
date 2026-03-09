@@ -186,7 +186,7 @@ export function OrderHistory() {
                   <div className="min-w-[80px]">
                     <p className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wide">Fuel</p>
                     <p className="text-sm font-medium font-mono text-gray-800 dark:text-emerald-400">
-                      {order.fuelLoad ? `${order.fuelLoad.toLocaleString()} LBS` : "N/A"}
+                      {order.fuelLoad != null ? `${order.fuelLoad.toLocaleString()} LBS` : "—"}
                     </p>
                   </div>
 
