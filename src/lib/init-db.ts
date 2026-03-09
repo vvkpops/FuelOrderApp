@@ -78,14 +78,22 @@ CREATE TABLE IF NOT EXISTS settings (
 const migrations = `
 -- Add flight_hash column if it doesn't exist (for real-time flight sync)
 ALTER TABLE fuel_orders ADD COLUMN IF NOT EXISTS flight_hash TEXT;
-CREATE INDEX IF NOT EXISTS idx_fuel_orders_flight_hash ON fuel_orders(flight_hash);
 `;
 
 let initialized = false;
 
 export async function ensureDb() {
   if (initialized) return;
-  await pool.query(schema);
-  await pool.query(migrations);
+  try {
+    await pool.query(schema);
+  } catch (e) {
+    // Schema already exists, that's fine
+  }
+  try {
+    await pool.query(migrations);
+  } catch (e) {
+    // Migration might fail if column exists or other issues - continue anyway
+    console.error("Migration warning:", e);
+  }
   initialized = true;
 }

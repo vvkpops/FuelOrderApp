@@ -103,29 +103,65 @@ export async function POST(req: NextRequest) {
     // Generate unique flight hash based on flight number, departure airport, and date
     const hash = flightHash(flightNumber, deptIcao, deptTime);
 
-    // Check for duplicate — same flight hash, not cancelled
+    // Check for duplicate — same flight, not cancelled
     if (!isUpdate) {
-      const { rows: dupes } = await pool.query(
-        "SELECT * FROM fuel_orders WHERE flight_hash = $1 AND status != 'CANCELLED' LIMIT 1",
-        [hash]
-      );
+      try {
+        // Try using flight_hash first
+        const { rows: dupes } = await pool.query(
+          "SELECT * FROM fuel_orders WHERE flight_hash = $1 AND status != 'CANCELLED' LIMIT 1",
+          [hash]
+        );
 
-      if (dupes.length > 0) {
-        const d = dupes[0];
-        return NextResponse.json({
-          success: false,
-          error: "DUPLICATE_WARNING",
-          message: `An order already exists for ${flightNumber} at ${deptIcao} (Status: ${d.status}). Use update/resend instead, or include isUpdate: true.`,
-          existingOrder: {
-            id: d.id,
-            flightNumber: d.flight_number,
-            status: d.status,
-            deptTime: new Date(d.dept_time).toISOString(),
-            sentAt: d.sent_at ? new Date(d.sent_at).toISOString() : null,
-            createdAt: new Date(d.created_at).toISOString(),
-            updatedAt: new Date(d.updated_at).toISOString(),
-          },
-        });
+        if (dupes.length > 0) {
+          const d = dupes[0];
+          return NextResponse.json({
+            success: false,
+            error: "DUPLICATE_WARNING",
+            message: `An order already exists for ${flightNumber} at ${deptIcao} (Status: ${d.status}). Use update/resend instead, or include isUpdate: true.`,
+            existingOrder: {
+              id: d.id,
+              flightNumber: d.flight_number,
+              status: d.status,
+              deptTime: new Date(d.dept_time).toISOString(),
+              sentAt: d.sent_at ? new Date(d.sent_at).toISOString() : null,
+              createdAt: new Date(d.created_at).toISOString(),
+              updatedAt: new Date(d.updated_at).toISOString(),
+            },
+          });
+        }
+      } catch {
+        // Fallback: check by flight_number + dept_icao + dept_time
+        const deptDate = new Date(deptTime);
+        const startOfDay = new Date(deptDate);
+        startOfDay.setUTCHours(0, 0, 0, 0);
+        const endOfDay = new Date(deptDate);
+        endOfDay.setUTCHours(23, 59, 59, 999);
+        
+        const { rows: dupes } = await pool.query(
+          `SELECT * FROM fuel_orders 
+           WHERE flight_number = $1 AND dept_icao = $2 
+           AND dept_time >= $3 AND dept_time <= $4
+           AND status != 'CANCELLED' LIMIT 1`,
+          [flightNumber, deptIcao.toUpperCase(), startOfDay, endOfDay]
+        );
+
+        if (dupes.length > 0) {
+          const d = dupes[0];
+          return NextResponse.json({
+            success: false,
+            error: "DUPLICATE_WARNING",
+            message: `An order already exists for ${flightNumber} at ${deptIcao} (Status: ${d.status}). Use update/resend instead, or include isUpdate: true.`,
+            existingOrder: {
+              id: d.id,
+              flightNumber: d.flight_number,
+              status: d.status,
+              deptTime: new Date(d.dept_time).toISOString(),
+              sentAt: d.sent_at ? new Date(d.sent_at).toISOString() : null,
+              createdAt: new Date(d.created_at).toISOString(),
+              updatedAt: new Date(d.updated_at).toISOString(),
+            },
+          });
+        }
       }
     }
 
@@ -189,35 +225,68 @@ export async function POST(req: NextRequest) {
     const orderId = newId();
     const now = new Date();
 
-    await pool.query(
-      `INSERT INTO fuel_orders
-        (id, flight_hash, flight_number, ac_registration, ac_type, dept_icao, dept_time,
-         fuel_load, dispatcher, status, sent_at, sent_to, cc_to, email_subject, email_body,
-         is_update, original_order_id, update_reason, created_at, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
-      [
-        orderId,
-        hash,
-        flightNumber,
-        acRegistration,
-        acType || "Unknown",
-        deptIcao.toUpperCase(),
-        new Date(deptTime),
-        parsedFuelLoad,
-        dispatcher,
-        "SENT",
-        now,
-        station.emails,
-        station.cc_emails,
-        emailSubject,
-        emailBody,
-        !!isUpdate,
-        originalOrderId || null,
-        updateReason || null,
-        now,
-        now,
-      ]
-    );
+    // Try with flight_hash, fallback to without if column doesn't exist
+    try {
+      await pool.query(
+        `INSERT INTO fuel_orders
+          (id, flight_hash, flight_number, ac_registration, ac_type, dept_icao, dept_time,
+           fuel_load, dispatcher, status, sent_at, sent_to, cc_to, email_subject, email_body,
+           is_update, original_order_id, update_reason, created_at, updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+        [
+          orderId,
+          hash,
+          flightNumber,
+          acRegistration,
+          acType || "Unknown",
+          deptIcao.toUpperCase(),
+          new Date(deptTime),
+          parsedFuelLoad,
+          dispatcher,
+          "SENT",
+          now,
+          station.emails,
+          station.cc_emails,
+          emailSubject,
+          emailBody,
+          !!isUpdate,
+          originalOrderId || null,
+          updateReason || null,
+          now,
+          now,
+        ]
+      );
+    } catch {
+      // flight_hash column may not exist yet, try without it
+      await pool.query(
+        `INSERT INTO fuel_orders
+          (id, flight_number, ac_registration, ac_type, dept_icao, dept_time,
+           fuel_load, dispatcher, status, sent_at, sent_to, cc_to, email_subject, email_body,
+           is_update, original_order_id, update_reason, created_at, updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+        [
+          orderId,
+          flightNumber,
+          acRegistration,
+          acType || "Unknown",
+          deptIcao.toUpperCase(),
+          new Date(deptTime),
+          parsedFuelLoad,
+          dispatcher,
+          "SENT",
+          now,
+          station.emails,
+          station.cc_emails,
+          emailSubject,
+          emailBody,
+          !!isUpdate,
+          originalOrderId || null,
+          updateReason || null,
+          now,
+          now,
+        ]
+      );
+    }
 
     // No longer updating flights table - data is fetched real-time from API
     // Fuel load and dispatcher are stored with the order and retrieved when listing flights

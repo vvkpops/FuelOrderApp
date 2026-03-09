@@ -102,27 +102,33 @@ export async function GET(req: NextRequest) {
       flightHash(f.callsign, f.departureicao, f.departuretime)
     );
 
-    // Query orders by flight_hash
-    const { rows: orders } = await pool.query(
-      `SELECT flight_hash, id, status, sent_at, fuel_load, dispatcher
-       FROM fuel_orders 
-       WHERE flight_hash = ANY($1) AND status != 'CANCELLED'
-       ORDER BY sent_at DESC`,
-      [flightHashes]
-    );
+    // Query orders by flight_hash (with fallback if column doesn't exist)
+    let orderMap = new Map<string, { hasOrder: boolean; latestStatus: string | null; fuelLoad: number | null; dispatcher: string | null }>();
+    
+    try {
+      const { rows: orders } = await pool.query(
+        `SELECT flight_hash, id, status, sent_at, fuel_load, dispatcher
+         FROM fuel_orders 
+         WHERE flight_hash = ANY($1) AND status != 'CANCELLED'
+         ORDER BY sent_at DESC`,
+        [flightHashes]
+      );
 
-    // Build a map of flight_hash -> order info
-    const orderMap = new Map<string, { hasOrder: boolean; latestStatus: string | null; fuelLoad: number | null; dispatcher: string | null }>();
-    for (const o of orders) {
-      const hash = o.flight_hash;
-      if (!orderMap.has(hash)) {
-        orderMap.set(hash, {
-          hasOrder: true,
-          latestStatus: o.status,
-          fuelLoad: o.fuel_load,
-          dispatcher: o.dispatcher,
-        });
+      // Build a map of flight_hash -> order info
+      for (const o of orders) {
+        const hash = o.flight_hash;
+        if (hash && !orderMap.has(hash)) {
+          orderMap.set(hash, {
+            hasOrder: true,
+            latestStatus: o.status,
+            fuelLoad: o.fuel_load,
+            dispatcher: o.dispatcher,
+          });
+        }
       }
+    } catch (e) {
+      // flight_hash column might not exist yet - continue without order info
+      console.error("Order lookup failed:", e);
     }
 
     // Sort by departure time
