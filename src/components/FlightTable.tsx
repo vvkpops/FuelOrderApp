@@ -649,6 +649,10 @@ export function FlightTable() {
                         {flight.hasOrder && (
                           <button
                             onClick={() => {
+                              const confirmed = window.confirm(
+                                `Re-generate original order for ${flight.flightNumber} (${flight.deptIcao})?\n\nThis creates a new original order instead of updating the existing one.`
+                              );
+                              if (!confirmed) return;
                               setForceOriginalGeneration(true);
                               setSelectedFlight(flight);
                               setShowOrderModal(true);
