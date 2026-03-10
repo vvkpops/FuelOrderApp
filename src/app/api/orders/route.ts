@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
       updateReason,
       timeFormat,
       autoSend,
+      allowDuplicate,
     } = body;
 
     if (!flightNumber || !acRegistration || !deptIcao || !dispatcher) {
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
     const hash = flightHash(flightNumber, deptIcao, deptTime);
 
     // Check for duplicate — same flight, not cancelled
-    if (!isUpdate) {
+    if (!isUpdate && !allowDuplicate) {
       try {
         // Try using flight_hash first
         const { rows: dupes } = await pool.query(

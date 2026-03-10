@@ -62,6 +62,7 @@ export function FlightTable() {
   const [flights, setFlights] = useState<Flight[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [forceOriginalGeneration, setForceOriginalGeneration] = useState(false);
   const [showFilters, setShowFilters] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("fb_showFilters");
@@ -521,7 +522,7 @@ export function FlightTable() {
               <col className="w-[100px]" />  {/* Fuel Load */}
               <col className="w-[80px]" />   {/* Dispatcher */}
               <col className="w-[100px]" />  {/* Status */}
-              <col className="w-[170px]" />  {/* Action */}
+              <col className="w-[250px]" />  {/* Action */}
             </colgroup>
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700/50">
@@ -616,6 +617,7 @@ export function FlightTable() {
                         {/* Generate button - opens modal */}
                         <button
                           onClick={() => {
+                            setForceOriginalGeneration(false);
                             setSelectedFlight(flight);
                             setShowOrderModal(true);
                           }}
@@ -644,6 +646,20 @@ export function FlightTable() {
                             </>
                           )}
                         </button>
+                        {flight.hasOrder && (
+                          <button
+                            onClick={() => {
+                              setForceOriginalGeneration(true);
+                              setSelectedFlight(flight);
+                              setShowOrderModal(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-400 dark:hover:bg-sky-500/20 border border-sky-200 dark:border-sky-500/30"
+                            title="Create a fresh original order instead of an update"
+                          >
+                            <FileText size={12} />
+                            Re-generate
+                          </button>
+                        )}
                         {/* Order button - auto-email (enabled via settings) */}
                         {!flight.hasOrder && (
                           <button
@@ -681,14 +697,17 @@ export function FlightTable() {
       {showOrderModal && selectedFlight && (
         <OrderModal
           flight={selectedFlight}
-          isUpdate={selectedFlight.hasOrder}
+          isUpdate={selectedFlight.hasOrder && !forceOriginalGeneration}
+          forceOriginalGeneration={forceOriginalGeneration}
           onClose={() => {
             setShowOrderModal(false);
             setSelectedFlight(null);
+            setForceOriginalGeneration(false);
           }}
           onSuccess={() => {
             setShowOrderModal(false);
             setSelectedFlight(null);
+            setForceOriginalGeneration(false);
             fetchFlights();
           }}
         />

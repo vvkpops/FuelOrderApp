@@ -20,11 +20,12 @@ interface Flight {
 interface OrderModalProps {
   flight: Flight;
   isUpdate?: boolean;
+  forceOriginalGeneration?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalProps) {
+export function OrderModal({ flight, isUpdate, forceOriginalGeneration, onClose, onSuccess }: OrderModalProps) {
   const [form, setForm] = useState({
     flightNumber: flight.flightNumber,
     acRegistration: flight.acRegistration,
@@ -157,6 +158,7 @@ export function OrderModal({ flight, isUpdate, onClose, onSuccess }: OrderModalP
           fuelLoad: form.fuelLoad ? parseFloat(form.fuelLoad) : null,
           dispatcher: form.dispatcher,
           isUpdate,
+          allowDuplicate: !!forceOriginalGeneration,
           updateReason: form.updateReason || undefined,
           timeFormat,
         }),
